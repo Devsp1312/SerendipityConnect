@@ -6,13 +6,27 @@
   <title>SerendipityConnect — Connection Explorer</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
   <script src="https://d3js.org/d3.v7.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+    :root {
+      --bg: #080b10;
+      --surface: rgba(255,255,255,0.034);
+      --surface-strong: rgba(255,255,255,0.06);
+      --stroke: rgba(255,255,255,0.08);
+      --stroke-strong: rgba(255,255,255,0.14);
+      --text-soft: rgba(255,255,255,0.52);
+      --text-faint: rgba(255,255,255,0.28);
+      --panel-shadow: 0 24px 60px rgba(0,0,0,0.32);
+    }
+
     body {
-      background: #080b10;
+      background:
+        radial-gradient(circle at top left, rgba(0,180,216,0.12) 0%, transparent 28%),
+        radial-gradient(circle at top right, rgba(6,214,160,0.10) 0%, transparent 24%),
+        linear-gradient(180deg, #090d13 0%, #070a0f 48%, #05070c 100%);
       color: rgba(255,255,255,0.90);
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
       min-height: 100vh;
@@ -50,6 +64,7 @@
       font-weight: 800;
       letter-spacing: -0.6px;
       line-height: 1;
+      font-family: 'Space Grotesk', 'Inter', sans-serif;
     }
     .accent {
       background: linear-gradient(120deg, #00B4D8 0%, #06D6A0 100%);
@@ -63,6 +78,7 @@
       margin-top: 3px;
       font-weight: 400;
       letter-spacing: 0.1px;
+      max-width: 42ch;
     }
     .header-legend {
       display: flex;
@@ -92,6 +108,7 @@
       flex-shrink: 0;
       flex-wrap: wrap;
       background: rgba(255,255,255,0.012);
+      backdrop-filter: blur(18px);
     }
     .control-divider { width: 1px; height: 18px; background: rgba(255,255,255,0.09); }
     .control-group { display: flex; align-items: center; gap: 10px; }
@@ -151,19 +168,25 @@
     }
 
     /* ── Main layout ────────────────────────────────────────── */
-    #app { display: flex; flex: 1; overflow: hidden; min-height: 0; }
+    #app {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+      min-height: 0;
+      min-width: 0;
+    }
 
     /* ── Left panel ─────────────────────────────────────────── */
     #left-panel {
       width: 358px; min-width: 358px;
       border-right: 1px solid rgba(255,255,255,0.06);
-      overflow-y: auto; padding: 10px;
+      overflow-y: auto; padding: 12px;
       background: rgba(0,0,0,0.14);
       -webkit-overflow-scrolling: touch;
     }
     #left-panel::-webkit-scrollbar { width: 3px; }
     #left-panel::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.09); border-radius: 2px; }
-    #profile-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    #profile-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 
     /* ── Profile cards ──────────────────────────────────────── */
     @keyframes card-in {
@@ -171,10 +194,10 @@
       to   { opacity: 1; transform: translateY(0)   scale(1);     }
     }
     .profile-card {
-      background: rgba(255,255,255,0.034);
+      background: linear-gradient(180deg, rgba(255,255,255,0.048) 0%, rgba(255,255,255,0.022) 100%);
       border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 14px;
-      padding: 11px;
+      border-radius: 18px;
+      padding: 12px;
       cursor: pointer;
       transition: background 0.2s, border-color 0.2s, transform 0.16s, box-shadow 0.2s;
       user-select: none;
@@ -182,6 +205,7 @@
       animation: card-in 0.45s ease forwards;
       position: relative;
       overflow: hidden;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
     }
     /* shimmer line at top, set via JS per-profile color */
     .profile-card::before {
@@ -189,7 +213,7 @@
       position: absolute;
       top: 0; left: 0; right: 0;
       height: 2px;
-      border-radius: 14px 14px 0 0;
+      border-radius: 18px 18px 0 0;
       opacity: 0.55;
       transition: opacity 0.2s;
     }
@@ -204,15 +228,24 @@
 
     .card-header { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 9px; }
     .avatar {
-      width: 34px; height: 34px; border-radius: 50%;
+      width: 38px; height: 38px; border-radius: 14px;
       display: flex; align-items: center; justify-content: center;
-      font-size: 10.5px; font-weight: 700;
+      font-size: 11px; font-weight: 700;
       color: rgba(0,0,0,0.85); flex-shrink: 0;
+      font-family: 'Space Grotesk', 'Inter', sans-serif;
     }
     .card-info { flex: 1; min-width: 0; }
-    .card-name { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: -0.2px; }
+    .card-name {
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      letter-spacing: -0.2px;
+      font-family: 'Space Grotesk', 'Inter', sans-serif;
+    }
     .card-occ  { font-size: 9.5px; color: rgba(255,255,255,0.38); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .card-loc  { font-size: 9px; color: rgba(255,255,255,0.24); margin-top: 1px; }
+    .card-loc  { font-size: 9px; color: rgba(255,255,255,0.24); margin-top: 2px; }
 
     .card-badge {
       border-radius: 10px;
@@ -244,7 +277,7 @@
     .trait-pct    { font-size: 9px; color: rgba(255,255,255,0.24); width: 22px; text-align: right; flex-shrink: 0; font-variant-numeric: tabular-nums; }
 
     /* ── Right panel ────────────────────────────────────────── */
-    #right-panel { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
+    #right-panel { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-height: 0; min-width: 0; }
     #graph-container {
       flex: 1; position: relative; overflow: hidden;
       background:
@@ -252,6 +285,7 @@
         radial-gradient(ellipse at 18% 78%, rgba(6,214,160,0.04) 0%, transparent 40%),
         radial-gradient(ellipse at 82% 72%, rgba(247,37,133,0.03) 0%, transparent 38%),
         radial-gradient(ellipse at 45% 55%, rgba(255,158,0,0.02) 0%, transparent 45%);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
     }
     #graph-container svg { display: block; }
 
@@ -305,9 +339,10 @@
     .why-header { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
     .why-avatars { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
     .why-avatar {
-      width: 32px; height: 32px; border-radius: 50%;
+      width: 36px; height: 36px; border-radius: 14px;
       display: flex; align-items: center; justify-content: center;
       font-size: 10px; font-weight: 700; color: rgba(0,0,0,0.85); flex-shrink: 0;
+      font-family: 'Space Grotesk', 'Inter', sans-serif;
     }
     .why-connector { display: flex; align-items: center; }
     .why-score-badge {
@@ -316,7 +351,15 @@
       white-space: nowrap; letter-spacing: -0.5px;
     }
     .why-title  { flex: 1; min-width: 0; }
-    .why-names  { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: -0.3px; }
+    .why-names  {
+      font-size: 13px;
+      font-weight: 700;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      letter-spacing: -0.3px;
+      font-family: 'Space Grotesk', 'Inter', sans-serif;
+    }
     .why-cats   { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 3px; }
     .score-cat  { font-size: 11px; }
     .score-cat b { font-weight: 700; }
@@ -359,8 +402,15 @@
 
     /* ── Responsive layout ─────────────────────────────────── */
     @media (max-width: 980px) {
+      body {
+        height: auto;
+        min-height: 100vh;
+        min-height: 100svh;
+        overflow-x: hidden;
+        overflow-y: auto;
+      }
       header {
-        padding: 12px 16px;
+        padding: 16px 16px 12px;
         align-items: flex-start;
         flex-wrap: wrap;
       }
@@ -370,93 +420,193 @@
       }
 
       #controls {
-        padding: 8px 16px;
+        padding: 8px 16px 10px;
         gap: 10px;
       }
 
       #app {
         flex-direction: column;
+        overflow: visible;
+        padding: 0 16px 20px;
+        gap: 12px;
       }
       #left-panel {
+        order: 2;
         width: 100%;
         min-width: 0;
-        height: 38vh;
-        border-right: 0;
-        border-bottom: 1px solid rgba(255,255,255,0.06);
+        height: auto;
+        border: 0;
+        background: transparent;
+        overflow: visible;
+        padding: 0;
+      }
+      #profile-grid {
+        display: flex;
+        overflow-x: auto;
+        gap: 12px;
+        padding: 2px 0 8px;
+        scroll-snap-type: x mandatory;
+      }
+      #profile-grid::-webkit-scrollbar {
+        height: 4px;
+      }
+      #profile-grid::-webkit-scrollbar-thumb {
+        background: rgba(255,255,255,0.14);
+        border-radius: 999px;
+      }
+      .profile-card {
+        min-width: min(320px, 78vw);
+        scroll-snap-align: start;
       }
       #right-panel {
         min-height: 0;
+        overflow: visible;
+        order: 1;
+        gap: 12px;
+      }
+      #graph-container {
+        min-height: 50vh;
+        min-height: 50svh;
+        border-radius: 28px;
+        border: 1px solid rgba(255,255,255,0.08);
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), var(--panel-shadow);
       }
       #why-panel {
-        height: 210px;
-        min-height: 210px;
+        height: auto;
+        min-height: 204px;
+        border: 1px solid rgba(255,255,255,0.08);
+        border-top-color: rgba(255,255,255,0.08);
+        border-radius: 24px;
+        background:
+          linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.02) 100%),
+          rgba(0,0,0,0.24);
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+      }
+      #why-panel::before {
+        left: 18px;
+        right: 18px;
       }
     }
 
     @media (max-width: 640px) {
-      header h1 { font-size: 18px; }
+      header h1 { font-size: 22px; }
       header p {
-        font-size: 10px;
-        margin-top: 4px;
+        font-size: 10.5px;
+        margin-top: 6px;
         max-width: 100%;
+        line-height: 1.45;
       }
       .header-legend {
-        gap: 8px;
-        padding: 6px 10px;
+        gap: 6px;
+        padding: 8px;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        border-radius: 16px;
       }
-      .legend-item { font-size: 10px; }
+      .legend-item {
+        font-size: 10px;
+        justify-content: center;
+        padding: 6px 2px;
+        background: rgba(255,255,255,0.025);
+        border-radius: 999px;
+      }
 
       #controls {
-        padding: 8px 12px;
+        padding: 0 14px 8px;
+        border-bottom: 0;
+        background: transparent;
+        gap: 8px;
       }
       .control-divider { display: none; }
       .control-group {
         width: 100%;
         flex-wrap: wrap;
         gap: 8px;
+        padding: 12px;
+        border-radius: 18px;
+        border: 1px solid rgba(255,255,255,0.08);
+        background: rgba(255,255,255,0.03);
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
       }
+      .control-label { width: 100%; }
       #threshold-slider {
-        width: min(100%, 170px);
+        width: auto;
+        min-width: 150px;
+        flex: 1;
       }
       .cat-toggle {
-        padding: 6px 10px;
+        padding: 8px 10px;
+        flex: 1 1 calc(33.333% - 6px);
+        min-width: 96px;
+        text-align: center;
       }
-
-      #left-panel {
-        height: 44vh;
-        padding: 8px;
+      #app {
+        padding: 0 14px calc(20px + env(safe-area-inset-bottom));
+        gap: 10px;
       }
-      #profile-grid {
-        grid-template-columns: 1fr;
+      .profile-card {
+        min-width: min(84vw, 320px);
       }
-
+      .card-name {
+        font-size: 13px;
+      }
+      .card-occ,
+      .card-loc {
+        font-size: 10px;
+      }
+      .trait-chip {
+        max-width: 110px;
+      }
+      #graph-container {
+        min-height: 46svh;
+        border-radius: 22px;
+      }
       #why-panel {
-        height: 196px;
-        min-height: 196px;
-        padding: 10px 12px 10px;
+        min-height: 0;
+        padding: 12px;
       }
       #why-panel::before {
         left: 12px;
         right: 12px;
       }
       .why-header {
-        flex-wrap: wrap;
-        gap: 8px;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+      }
+      .why-avatars {
+        width: 100%;
+        justify-content: space-between;
       }
       .why-names {
         font-size: 12px;
+        white-space: normal;
       }
       .why-cats {
         margin-top: 2px;
         gap: 6px;
       }
       .why-bar-label {
-        width: 116px;
-        min-width: 116px;
+        width: 104px;
+        min-width: 104px;
       }
       .why-bar-pcts {
-        width: 54px;
-        min-width: 54px;
+        width: 50px;
+        min-width: 50px;
+        font-size: 9px;
+      }
+    }
+
+    @media (max-width: 430px) {
+      .profile-card {
+        min-width: calc(100vw - 28px);
+      }
+      .why-bar-row {
+        gap: 6px;
+      }
+      .why-bar-label {
+        width: 92px;
+        min-width: 92px;
       }
     }
 
@@ -470,7 +620,7 @@
   <header>
     <div>
       <h1>Serendipity<span class="accent">Connect</span></h1>
-      <p>Explore how psychological profiles connect through shared traits and confidence scores</p>
+      <p>Explore how anonymous profiles connect through shared traits and confidence scores.</p>
     </div>
     <div class="header-legend">
       <span class="legend-item" style="color:#00B4D8">⬤ Core Values</span>
@@ -503,7 +653,7 @@
       <div id="why-panel">
         <div class="why-placeholder">
           <div class="why-placeholder-icon">⟡</div>
-          <span>Click a person or connection to explore why they're matched</span>
+          <span>Select a profile or connection to inspect the match logic.</span>
         </div>
       </div>
     </div>
@@ -518,7 +668,7 @@
 
 const PROFILES = [
   {
-    id: 'p1', name: 'Dev Sharma', age: 25,
+    id: 'p1', user_id: 'User ID 104728', age: 25,
     occupation: 'AI Engineer & Founder', location: 'San Francisco',
     avatar_color: '#00B4D8',
     core_values: [
@@ -546,7 +696,7 @@ const PROFILES = [
     ],
   },
   {
-    id: 'p2', name: 'Priya Nair', age: 29,
+    id: 'p2', user_id: 'User ID 582413', age: 29,
     occupation: 'ML Research Scientist', location: 'London',
     avatar_color: '#06D6A0',
     core_values: [
@@ -572,7 +722,7 @@ const PROFILES = [
     ],
   },
   {
-    id: 'p3', name: 'Marcus Webb', age: 32,
+    id: 'p3', user_id: 'User ID 248901', age: 32,
     occupation: 'Security Engineer', location: 'Berlin',
     avatar_color: '#4361EE',
     core_values: [
@@ -598,7 +748,7 @@ const PROFILES = [
     ],
   },
   {
-    id: 'p4', name: 'Lena Fischer', age: 27,
+    id: 'p4', user_id: 'User ID 773620', age: 27,
     occupation: 'Graphic Designer & Artist', location: 'Vienna',
     avatar_color: '#F72585',
     core_values: [
@@ -624,7 +774,7 @@ const PROFILES = [
     ],
   },
   {
-    id: 'p5', name: 'Omar Hassan', age: 31,
+    id: 'p5', user_id: 'User ID 391845', age: 31,
     occupation: 'Musician & Sound Designer', location: 'Cairo',
     avatar_color: '#FF9E00',
     core_values: [
@@ -649,7 +799,7 @@ const PROFILES = [
     ],
   },
   {
-    id: 'p6', name: 'Sofia Reyes', age: 28,
+    id: 'p6', user_id: 'User ID 667214', age: 28,
     occupation: 'UX Writer & Content Strategist', location: 'Mexico City',
     avatar_color: '#B5179E',
     core_values: [
@@ -676,7 +826,7 @@ const PROFILES = [
     ],
   },
   {
-    id: 'p7', name: 'Aisha Okafor', age: 34,
+    id: 'p7', user_id: 'User ID 825390', age: 34,
     occupation: 'Mindfulness Coach & Author', location: 'Lagos',
     avatar_color: '#2EC4B6',
     core_values: [
@@ -702,7 +852,7 @@ const PROFILES = [
     ],
   },
   {
-    id: 'p8', name: 'Jin Park', age: 26,
+    id: 'p8', user_id: 'User ID 452168', age: 26,
     occupation: 'Sports Scientist & Biohacker', location: 'Seoul',
     avatar_color: '#EF476F',
     core_values: [
@@ -1006,20 +1156,20 @@ function updateGraph() {
     .attr('stroke',       'rgba(255,255,255,0.14)')
     .attr('stroke-width', 1.5);
 
-  // Initials text
+  // Compact user token inside the node
   nodeSel.append('text')
     .attr('text-anchor', 'middle').attr('dominant-baseline', 'central')
     .attr('fill', 'rgba(0,0,0,0.82)').attr('font-size', '10.5px').attr('font-weight', '700')
-    .attr('font-family', "'Inter', sans-serif").attr('pointer-events', 'none')
-    .text(d => initials(d.name));
+    .attr('font-family', "'Space Grotesk', 'Inter', sans-serif").attr('pointer-events', 'none')
+    .text(d => userGlyph(d));
 
-  // First name label
+  // Short ID label under each node
   nodeSel.append('text')
     .attr('class', 'node-label')
     .attr('text-anchor', 'middle').attr('dy', d => nodeRadius(d) + 14)
     .attr('fill', 'rgba(255,255,255,0.52)').attr('font-size', '10px')
-    .attr('font-family', "'Inter', sans-serif").attr('pointer-events', 'none')
-    .text(d => d.name.split(' ')[0]);
+    .attr('font-family', "'Space Grotesk', 'Inter', sans-serif").attr('pointer-events', 'none')
+    .text(d => shortUserId(d));
 
   // ── Force simulation ──
   simulation = d3.forceSimulation(nodes)
@@ -1192,7 +1342,9 @@ function hideTooltip() { document.getElementById('tooltip').style.opacity = '0';
 // 10. PROFILE CARDS
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function initials(name) { return name.split(' ').map(w => w[0]).join(''); }
+function userDigits(profile) { return profile.user_id.replace(/\D/g, ''); }
+function userGlyph(profile)  { return userDigits(profile).slice(-3); }
+function shortUserId(profile) { return `ID ${userDigits(profile).slice(-4)}`; }
 
 function renderCards() {
   const grid = document.getElementById('profile-grid');
@@ -1217,11 +1369,11 @@ function renderCards() {
 
     card.innerHTML = `
       <div class="card-header">
-        <div class="avatar" style="background:${p.avatar_color}">${initials(p.name)}</div>
+        <div class="avatar" style="background:${p.avatar_color}">${userGlyph(p)}</div>
         <div class="card-info">
-          <div class="card-name">${p.name}</div>
+          <div class="card-name">${p.user_id}</div>
           <div class="card-occ">${p.occupation}</div>
-          <div class="card-loc">${p.location}</div>
+          <div class="card-loc">Age ${p.age} · ${p.location}</div>
         </div>
         <div class="card-badge" id="badge-${p.id}" title="Active connections">0</div>
       </div>
@@ -1243,7 +1395,7 @@ function renderCards() {
     // Top accent line
     card.style.setProperty('--top-border', p.avatar_color);
     card.querySelector('.card-header').insertAdjacentHTML('beforebegin',
-      `<div style="position:absolute;top:0;left:0;right:0;height:2px;border-radius:14px 14px 0 0;background:linear-gradient(90deg,${hexToRgba(p.avatar_color,0)},${hexToRgba(p.avatar_color,0.55)},${hexToRgba(p.avatar_color,0)})"></div>`
+      `<div style="position:absolute;top:0;left:0;right:0;height:2px;border-radius:18px 18px 0 0;background:linear-gradient(90deg,${hexToRgba(p.avatar_color,0)},${hexToRgba(p.avatar_color,0.55)},${hexToRgba(p.avatar_color,0)})"></div>`
     );
 
     card.addEventListener('click', () => selectProfile(p.id));
@@ -1266,7 +1418,7 @@ function updateCardSelection(pid) {
       card.classList.add('selected');
       card.style.borderColor = hexToRgba(p.avatar_color, 0.38);
       card.style.boxShadow   = `0 0 0 1px ${hexToRgba(p.avatar_color, 0.18)}, 0 8px 24px rgba(0,0,0,0.28)`;
-      card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      card.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
     }
   }
 }
@@ -1295,14 +1447,14 @@ function showWhyPanel(idA, idB) {
   panel.innerHTML = `
     <div class="why-header">
       <div class="why-avatars">
-        <div class="why-avatar" style="background:${pA.avatar_color};box-shadow:0 0 0 2px ${hexToRgba(pA.avatar_color,0.35)},0 0 10px ${hexToRgba(pA.avatar_color,0.20)}">${initials(pA.name)}</div>
+        <div class="why-avatar" style="background:${pA.avatar_color};box-shadow:0 0 0 2px ${hexToRgba(pA.avatar_color,0.35)},0 0 10px ${hexToRgba(pA.avatar_color,0.20)}">${userGlyph(pA)}</div>
         <div class="why-connector">
           <div class="why-score-badge" style="background:linear-gradient(135deg,${hexToRgba(pA.avatar_color,0.18)},${hexToRgba(pB.avatar_color,0.18)});border-color:${hexToRgba(pA.avatar_color,0.42)};color:#fff">${totalPct}%</div>
         </div>
-        <div class="why-avatar" style="background:${pB.avatar_color};box-shadow:0 0 0 2px ${hexToRgba(pB.avatar_color,0.35)},0 0 10px ${hexToRgba(pB.avatar_color,0.20)}">${initials(pB.name)}</div>
+        <div class="why-avatar" style="background:${pB.avatar_color};box-shadow:0 0 0 2px ${hexToRgba(pB.avatar_color,0.35)},0 0 10px ${hexToRgba(pB.avatar_color,0.20)}">${userGlyph(pB)}</div>
       </div>
       <div class="why-title">
-        <div class="why-names">${pA.name} <span style="color:rgba(255,255,255,0.25);font-weight:300">×</span> ${pB.name}</div>
+        <div class="why-names">${pA.user_id} <span style="color:rgba(255,255,255,0.25);font-weight:300">×</span> ${pB.user_id}</div>
         <div class="why-cats">${catHtml}</div>
       </div>
     </div>
@@ -1316,9 +1468,9 @@ function showNoConnections(pid) {
   const p = PROFILES.find(x => x.id === pid);
   document.getElementById('why-panel').innerHTML = `
     <div class="why-empty">
-      <div class="why-avatar" style="width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:rgba(0,0,0,0.82);background:${p.avatar_color};box-shadow:0 0 0 2px ${hexToRgba(p.avatar_color,0.35)}">${initials(p.name)}</div>
+      <div class="why-avatar" style="width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:rgba(0,0,0,0.82);background:${p.avatar_color};box-shadow:0 0 0 2px ${hexToRgba(p.avatar_color,0.35)}">${userGlyph(p)}</div>
       <div style="color:rgba(255,255,255,0.38);font-size:13px;font-weight:500;margin-top:4px">No connections above threshold</div>
-      <div style="color:rgba(255,255,255,0.22);font-size:11px">Try lowering the minimum strength slider</div>
+      <div style="color:rgba(255,255,255,0.22);font-size:11px">${p.user_id} needs a lower minimum strength slider.</div>
     </div>
   `;
 }
@@ -1327,7 +1479,7 @@ function resetWhyPanel() {
   document.getElementById('why-panel').innerHTML = `
     <div class="why-placeholder">
       <div class="why-placeholder-icon">⟡</div>
-      <span>Click a person or connection to explore why they're matched</span>
+      <span>Select a profile or connection to inspect the match logic.</span>
     </div>
   `;
 }
