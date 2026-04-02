@@ -1,0 +1,1328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SerendipityConnect — Connection Explorer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #080b10;
+      color: rgba(255,255,255,0.90);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Header ─────────────────────────────────────────────── */
+    header {
+      padding: 14px 22px 13px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      background: linear-gradient(180deg, rgba(0,180,216,0.05) 0%, transparent 100%);
+      border-bottom: 1px solid transparent;
+      position: relative;
+    }
+    header::after {
+      content: '';
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg,
+        transparent 0%, rgba(0,180,216,0.18) 20%,
+        rgba(6,214,160,0.12) 60%, transparent 100%);
+    }
+    header h1 {
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: -0.6px;
+      line-height: 1;
+    }
+    .accent {
+      background: linear-gradient(120deg, #00B4D8 0%, #06D6A0 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    header p {
+      font-size: 11px;
+      color: rgba(255,255,255,0.32);
+      margin-top: 3px;
+      font-weight: 400;
+      letter-spacing: 0.1px;
+    }
+    .header-legend {
+      display: flex;
+      gap: 14px;
+      flex-shrink: 0;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 24px;
+      padding: 6px 16px;
+    }
+    .legend-item {
+      font-size: 11px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      opacity: 0.75;
+    }
+
+    /* ── Controls ───────────────────────────────────────────── */
+    #controls {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 8px 22px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      flex-shrink: 0;
+      flex-wrap: wrap;
+      background: rgba(255,255,255,0.012);
+    }
+    .control-divider { width: 1px; height: 18px; background: rgba(255,255,255,0.09); }
+    .control-group { display: flex; align-items: center; gap: 10px; }
+    .control-label {
+      font-size: 10px;
+      color: rgba(255,255,255,0.32);
+      text-transform: uppercase;
+      letter-spacing: 0.7px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    #threshold-slider {
+      -webkit-appearance: none;
+      width: 110px; height: 3px;
+      border-radius: 2px;
+      background: rgba(255,255,255,0.10);
+      outline: none; cursor: pointer;
+    }
+    #threshold-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px; height: 14px;
+      border-radius: 50%;
+      background: #00B4D8; cursor: pointer;
+      box-shadow: 0 0 0 3px rgba(0,180,216,0.22), 0 0 10px rgba(0,180,216,0.45);
+      transition: box-shadow 0.2s;
+    }
+    #threshold-slider::-webkit-slider-thumb:hover {
+      box-shadow: 0 0 0 4px rgba(0,180,216,0.30), 0 0 16px rgba(0,180,216,0.60);
+    }
+    #threshold-value {
+      font-size: 13px; font-weight: 700; color: #00B4D8;
+      min-width: 30px; font-variant-numeric: tabular-nums; letter-spacing: -0.3px;
+    }
+    .cat-toggle {
+      padding: 5px 12px; border-radius: 20px;
+      border: 1px solid rgba(255,255,255,0.09);
+      background: rgba(255,255,255,0.03);
+      color: rgba(255,255,255,0.32);
+      font-size: 11px; font-weight: 500; font-family: inherit;
+      cursor: pointer; transition: all 0.18s; outline: none;
+    }
+    .cat-toggle:hover {
+      border-color: rgba(255,255,255,0.18); color: rgba(255,255,255,0.65);
+      background: rgba(255,255,255,0.06);
+    }
+    .cat-toggle.active[data-cat="core_values"] {
+      background: rgba(0,180,216,0.12); border-color: rgba(0,180,216,0.42); color: #00B4D8;
+      box-shadow: 0 0 14px rgba(0,180,216,0.18);
+    }
+    .cat-toggle.active[data-cat="long_term_goals"] {
+      background: rgba(6,214,160,0.12); border-color: rgba(6,214,160,0.42); color: #06D6A0;
+      box-shadow: 0 0 14px rgba(6,214,160,0.18);
+    }
+    .cat-toggle.active[data-cat="interests"] {
+      background: rgba(255,209,102,0.12); border-color: rgba(255,209,102,0.42); color: #FFD166;
+      box-shadow: 0 0 14px rgba(255,209,102,0.18);
+    }
+
+    /* ── Main layout ────────────────────────────────────────── */
+    #app { display: flex; flex: 1; overflow: hidden; min-height: 0; }
+
+    /* ── Left panel ─────────────────────────────────────────── */
+    #left-panel {
+      width: 358px; min-width: 358px;
+      border-right: 1px solid rgba(255,255,255,0.06);
+      overflow-y: auto; padding: 10px;
+      background: rgba(0,0,0,0.14);
+    }
+    #left-panel::-webkit-scrollbar { width: 3px; }
+    #left-panel::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.09); border-radius: 2px; }
+    #profile-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+    /* ── Profile cards ──────────────────────────────────────── */
+    @keyframes card-in {
+      from { opacity: 0; transform: translateY(10px) scale(0.97); }
+      to   { opacity: 1; transform: translateY(0)   scale(1);     }
+    }
+    .profile-card {
+      background: rgba(255,255,255,0.034);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 14px;
+      padding: 11px;
+      cursor: pointer;
+      transition: background 0.2s, border-color 0.2s, transform 0.16s, box-shadow 0.2s;
+      user-select: none;
+      opacity: 0;
+      animation: card-in 0.45s ease forwards;
+      position: relative;
+      overflow: hidden;
+    }
+    /* shimmer line at top, set via JS per-profile color */
+    .profile-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      border-radius: 14px 14px 0 0;
+      opacity: 0.55;
+      transition: opacity 0.2s;
+    }
+    .profile-card:hover {
+      background: rgba(255,255,255,0.058);
+      border-color: rgba(255,255,255,0.14);
+      transform: translateY(-2px);
+      box-shadow: 0 10px 28px rgba(0,0,0,0.30);
+    }
+    .profile-card:hover::before { opacity: 0.85; }
+    .profile-card.selected { background: rgba(255,255,255,0.048); }
+
+    .card-header { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 9px; }
+    .avatar {
+      width: 34px; height: 34px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10.5px; font-weight: 700;
+      color: rgba(0,0,0,0.85); flex-shrink: 0;
+    }
+    .card-info { flex: 1; min-width: 0; }
+    .card-name { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: -0.2px; }
+    .card-occ  { font-size: 9.5px; color: rgba(255,255,255,0.38); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .card-loc  { font-size: 9px; color: rgba(255,255,255,0.24); margin-top: 1px; }
+
+    .card-badge {
+      border-radius: 10px;
+      font-size: 10px; font-weight: 700;
+      padding: 2px 7px;
+      flex-shrink: 0; min-width: 22px; text-align: center;
+      transition: all 0.25s;
+      background: rgba(255,255,255,0.06);
+      color: rgba(255,255,255,0.30);
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    .card-badge.live {
+      background: rgba(0,180,216,0.18);
+      color: #00B4D8;
+      border-color: rgba(0,180,216,0.30);
+      box-shadow: 0 0 8px rgba(0,180,216,0.22);
+    }
+
+    .card-traits { display: flex; flex-direction: column; gap: 4px; }
+    .trait-row { display: flex; align-items: center; gap: 4px; }
+    .trait-chip {
+      font-size: 9px; font-weight: 500;
+      padding: 1.5px 5px; border-radius: 9px; border: 1px solid;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      max-width: 80px; flex-shrink: 0;
+    }
+    .trait-bar-bg { flex: 1; height: 3px; background: rgba(255,255,255,0.06); border-radius: 2px; overflow: hidden; }
+    .trait-bar    { height: 100%; border-radius: 2px; opacity: 0.72; }
+    .trait-pct    { font-size: 9px; color: rgba(255,255,255,0.24); width: 22px; text-align: right; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+
+    /* ── Right panel ────────────────────────────────────────── */
+    #right-panel { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
+    #graph-container {
+      flex: 1; position: relative; overflow: hidden;
+      background:
+        radial-gradient(ellipse at 58% 38%, rgba(0,180,216,0.07) 0%, transparent 52%),
+        radial-gradient(ellipse at 18% 78%, rgba(6,214,160,0.04) 0%, transparent 40%),
+        radial-gradient(ellipse at 82% 72%, rgba(247,37,133,0.03) 0%, transparent 38%),
+        radial-gradient(ellipse at 45% 55%, rgba(255,158,0,0.02) 0%, transparent 45%);
+    }
+    #graph-container svg { display: block; }
+
+    /* Node pulse animation */
+    @keyframes pulse-ring {
+      0%   { transform: scale(1);   opacity: 0.55; }
+      100% { transform: scale(2.4); opacity: 0;    }
+    }
+    .node-pulse {
+      transform-box: fill-box;
+      transform-origin: center;
+      animation: pulse-ring 2s ease-out infinite;
+      pointer-events: none;
+    }
+
+    /* ── Why panel ──────────────────────────────────────────── */
+    #why-panel {
+      height: 228px; min-height: 228px;
+      border-top: 1px solid rgba(255,255,255,0.06);
+      padding: 13px 18px 11px;
+      display: flex; flex-direction: column; gap: 10px;
+      overflow: hidden;
+      background: linear-gradient(180deg, rgba(0,0,0,0.10) 0%, rgba(0,0,0,0.06) 100%);
+      position: relative;
+    }
+    #why-panel::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 18px; right: 18px; height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(0,180,216,0.15), transparent);
+    }
+    .why-placeholder {
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; height: 100%; gap: 8px;
+    }
+    .why-placeholder-icon {
+      width: 32px; height: 32px; border-radius: 50%;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.07);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; color: rgba(255,255,255,0.18);
+    }
+    .why-placeholder span {
+      font-size: 12px; color: rgba(255,255,255,0.20); font-weight: 400;
+    }
+    .why-empty {
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; height: 100%; gap: 6px;
+    }
+
+    .why-header { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+    .why-avatars { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+    .why-avatar {
+      width: 32px; height: 32px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10px; font-weight: 700; color: rgba(0,0,0,0.85); flex-shrink: 0;
+    }
+    .why-connector { display: flex; align-items: center; }
+    .why-score-badge {
+      border-radius: 12px; padding: 3px 10px;
+      font-size: 13px; font-weight: 800; border: 1px solid;
+      white-space: nowrap; letter-spacing: -0.5px;
+    }
+    .why-title  { flex: 1; min-width: 0; }
+    .why-names  { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: -0.3px; }
+    .why-cats   { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 3px; }
+    .score-cat  { font-size: 11px; }
+    .score-cat b { font-weight: 700; }
+    .score-sep  { color: rgba(255,255,255,0.18); }
+
+    .why-bars { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 5px; min-height: 0; }
+    .why-bars::-webkit-scrollbar { width: 3px; }
+    .why-bars::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 2px; }
+
+    .why-bar-row   { display: flex; align-items: center; gap: 8px; }
+    .why-bar-label {
+      display: flex; align-items: center; gap: 5px;
+      width: 155px; min-width: 155px;
+      font-size: 11px; font-weight: 400; color: rgba(255,255,255,0.65);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .why-bar-dot   { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+    .why-bar-track { flex: 1; height: 5px; background: rgba(255,255,255,0.05); border-radius: 3px; overflow: hidden; }
+    .why-bar-fill  { height: 100%; border-radius: 3px; width: 0%; }
+    .why-bar-pcts  {
+      font-size: 10px; color: rgba(255,255,255,0.25);
+      width: 66px; min-width: 66px; text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* ── Tooltip ─────────────────────────────────────────────── */
+    #tooltip {
+      position: fixed;
+      background: rgba(8,11,16,0.96);
+      border: 1px solid rgba(255,255,255,0.11);
+      border-radius: 8px; padding: 5px 11px;
+      font-size: 12px; font-weight: 500;
+      pointer-events: none; opacity: 0;
+      transition: opacity 0.12s; z-index: 9999;
+      color: rgba(255,255,255,0.85);
+      backdrop-filter: blur(10px);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.45);
+      letter-spacing: -0.1px;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div>
+      <h1>Serendipity<span class="accent">Connect</span></h1>
+      <p>Explore how psychological profiles connect through shared traits and confidence scores</p>
+    </div>
+    <div class="header-legend">
+      <span class="legend-item" style="color:#00B4D8">⬤ Core Values</span>
+      <span class="legend-item" style="color:#06D6A0">⬤ Goals</span>
+      <span class="legend-item" style="color:#FFD166">⬤ Interests</span>
+    </div>
+  </header>
+
+  <div id="controls">
+    <div class="control-group">
+      <span class="control-label">Min Strength</span>
+      <input type="range" id="threshold-slider" min="0.10" max="0.80" step="0.05" value="0.30" />
+      <span id="threshold-value">0.30</span>
+    </div>
+    <div class="control-divider"></div>
+    <div class="control-group">
+      <span class="control-label">Include</span>
+      <button class="cat-toggle active" data-cat="core_values">Core Values</button>
+      <button class="cat-toggle active" data-cat="long_term_goals">Goals</button>
+      <button class="cat-toggle active" data-cat="interests">Interests</button>
+    </div>
+  </div>
+
+  <div id="app">
+    <div id="left-panel">
+      <div id="profile-grid"></div>
+    </div>
+    <div id="right-panel">
+      <div id="graph-container"></div>
+      <div id="why-panel">
+        <div class="why-placeholder">
+          <div class="why-placeholder-icon">⟡</div>
+          <span>Click a person or connection to explore why they're matched</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="tooltip"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════════════
+// 1. PROFILE DATA
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const PROFILES = [
+  {
+    id: 'p1', name: 'Dev Sharma', age: 25,
+    occupation: 'AI Engineer & Founder', location: 'San Francisco',
+    avatar_color: '#00B4D8',
+    core_values: [
+      { label: 'Privacy First',               weight: 1.00 },
+      { label: 'Continuous Learning',          weight: 1.00 },
+      { label: 'Building Things That Matter',  weight: 0.95 },
+      { label: 'Quality Over Speed',           weight: 0.90 },
+      { label: 'Open Source Philosophy',       weight: 0.85 },
+      { label: 'Creative Problem Solving',     weight: 0.90 },
+      { label: 'Simplicity in Design',         weight: 0.80 },
+    ],
+    long_term_goals: [
+      { label: 'Build an AI-Powered Product',  weight: 0.95 },
+      { label: 'Create Tools for Personal AI', weight: 0.90 },
+      { label: 'Contribute to Open Source',    weight: 0.80 },
+      { label: 'Start a Tech Company',         weight: 0.80 },
+      { label: 'Write a Technical Blog',       weight: 0.70 },
+    ],
+    interests: [
+      { label: 'AI Safety & Alignment',        weight: 0.85 },
+      { label: 'Knowledge Graphs',             weight: 0.80 },
+      { label: 'Running & Fitness',            weight: 0.70 },
+      { label: 'Indie Hacking & Startups',     weight: 0.75 },
+      { label: 'Generative Art',               weight: 0.60 },
+    ],
+  },
+  {
+    id: 'p2', name: 'Priya Nair', age: 29,
+    occupation: 'ML Research Scientist', location: 'London',
+    avatar_color: '#06D6A0',
+    core_values: [
+      { label: 'Privacy First',               weight: 0.92 },
+      { label: 'Continuous Learning',          weight: 0.95 },
+      { label: 'Intellectual Rigor',           weight: 0.90 },
+      { label: 'Open Source Philosophy',       weight: 0.78 },
+      { label: 'Ethical AI',                   weight: 0.88 },
+      { label: 'Quality Over Speed',           weight: 0.85 },
+    ],
+    long_term_goals: [
+      { label: 'Publish AI Safety Research',   weight: 0.90 },
+      { label: 'Build an AI-Powered Product',  weight: 0.70 },
+      { label: 'Teach at University',          weight: 0.65 },
+      { label: 'Write a Technical Blog',       weight: 0.72 },
+    ],
+    interests: [
+      { label: 'AI Safety & Alignment',        weight: 0.92 },
+      { label: 'Bayesian Methods',             weight: 0.80 },
+      { label: 'Rock Climbing',                weight: 0.75 },
+      { label: 'Philosophy of Mind',           weight: 0.70 },
+      { label: 'Knowledge Graphs',             weight: 0.65 },
+    ],
+  },
+  {
+    id: 'p3', name: 'Marcus Webb', age: 32,
+    occupation: 'Security Engineer', location: 'Berlin',
+    avatar_color: '#4361EE',
+    core_values: [
+      { label: 'Privacy First',               weight: 0.98 },
+      { label: 'User Empowerment',             weight: 0.85 },
+      { label: 'Open Source Philosophy',       weight: 0.90 },
+      { label: 'Transparency',                 weight: 0.88 },
+      { label: 'Quality Over Speed',           weight: 0.80 },
+      { label: 'Ethical AI',                   weight: 0.72 },
+    ],
+    long_term_goals: [
+      { label: 'Decentralize the Web',         weight: 0.88 },
+      { label: 'Contribute to Open Source',    weight: 0.92 },
+      { label: 'Build Privacy Tools',          weight: 0.85 },
+      { label: 'Start a Tech Company',         weight: 0.65 },
+    ],
+    interests: [
+      { label: 'Cryptography',                 weight: 0.90 },
+      { label: 'Indie Hacking & Startups',     weight: 0.70 },
+      { label: 'Cycling',                      weight: 0.78 },
+      { label: 'Philosophy of Mind',           weight: 0.60 },
+      { label: 'Electronic Music',             weight: 0.65 },
+    ],
+  },
+  {
+    id: 'p4', name: 'Lena Fischer', age: 27,
+    occupation: 'Graphic Designer & Artist', location: 'Vienna',
+    avatar_color: '#F72585',
+    core_values: [
+      { label: 'Creative Expression',          weight: 0.98 },
+      { label: 'Simplicity in Design',         weight: 0.92 },
+      { label: 'Authenticity',                 weight: 0.88 },
+      { label: 'Continuous Learning',          weight: 0.80 },
+      { label: 'Building Things That Matter',  weight: 0.75 },
+      { label: 'Sustainability',               weight: 0.82 },
+    ],
+    long_term_goals: [
+      { label: 'Publish an Art Book',          weight: 0.85 },
+      { label: 'Start a Creative Studio',      weight: 0.88 },
+      { label: 'Teach Design Principles',      weight: 0.72 },
+      { label: 'Write a Technical Blog',       weight: 0.60 },
+    ],
+    interests: [
+      { label: 'Generative Art',               weight: 0.90 },
+      { label: 'Typography',                   weight: 0.88 },
+      { label: 'Film Photography',             weight: 0.82 },
+      { label: 'Yoga & Meditation',            weight: 0.70 },
+      { label: 'Architecture',                 weight: 0.75 },
+    ],
+  },
+  {
+    id: 'p5', name: 'Omar Hassan', age: 31,
+    occupation: 'Musician & Sound Designer', location: 'Cairo',
+    avatar_color: '#FF9E00',
+    core_values: [
+      { label: 'Creative Expression',          weight: 0.96 },
+      { label: 'Authenticity',                 weight: 0.90 },
+      { label: 'Cultural Connection',          weight: 0.85 },
+      { label: 'Continuous Learning',          weight: 0.78 },
+      { label: 'Collaboration Over Competition', weight: 0.80 },
+    ],
+    long_term_goals: [
+      { label: 'Release a Studio Album',       weight: 0.90 },
+      { label: 'Score a Feature Film',         weight: 0.80 },
+      { label: 'Build a Recording Studio',     weight: 0.75 },
+      { label: 'Teach at University',          weight: 0.60 },
+    ],
+    interests: [
+      { label: 'Electronic Music',             weight: 0.92 },
+      { label: 'Music Theory',                 weight: 0.85 },
+      { label: 'Film Photography',             weight: 0.65 },
+      { label: 'AI Safety & Alignment',        weight: 0.45 },
+      { label: 'Running & Fitness',            weight: 0.68 },
+    ],
+  },
+  {
+    id: 'p6', name: 'Sofia Reyes', age: 28,
+    occupation: 'UX Writer & Content Strategist', location: 'Mexico City',
+    avatar_color: '#B5179E',
+    core_values: [
+      { label: 'Simplicity in Design',         weight: 0.90 },
+      { label: 'User Empowerment',             weight: 0.88 },
+      { label: 'Creative Expression',          weight: 0.82 },
+      { label: 'Authenticity',                 weight: 0.85 },
+      { label: 'Building Things That Matter',  weight: 0.78 },
+      { label: 'Continuous Learning',          weight: 0.80 },
+    ],
+    long_term_goals: [
+      { label: 'Write a Book',                 weight: 0.85 },
+      { label: 'Build a Developer Community',  weight: 0.72 },
+      { label: 'Start a Creative Studio',      weight: 0.70 },
+      { label: 'Write a Technical Blog',       weight: 0.80 },
+      { label: 'Teach Design Principles',      weight: 0.68 },
+    ],
+    interests: [
+      { label: 'Typography',                   weight: 0.80 },
+      { label: 'Indie Hacking & Startups',     weight: 0.68 },
+      { label: 'Yoga & Meditation',            weight: 0.72 },
+      { label: 'Knowledge Graphs',             weight: 0.55 },
+      { label: 'Film Photography',             weight: 0.70 },
+    ],
+  },
+  {
+    id: 'p7', name: 'Aisha Okafor', age: 34,
+    occupation: 'Mindfulness Coach & Author', location: 'Lagos',
+    avatar_color: '#2EC4B6',
+    core_values: [
+      { label: 'Sustainability',               weight: 0.90 },
+      { label: 'Authenticity',                 weight: 0.92 },
+      { label: 'Collaboration Over Competition', weight: 0.88 },
+      { label: 'Cultural Connection',          weight: 0.80 },
+      { label: 'Building Things That Matter',  weight: 0.78 },
+      { label: 'Continuous Learning',          weight: 0.75 },
+    ],
+    long_term_goals: [
+      { label: 'Write a Book',                 weight: 0.92 },
+      { label: 'Build a Wellness Community',   weight: 0.88 },
+      { label: 'Teach at University',          weight: 0.70 },
+      { label: 'Publish an Art Book',          weight: 0.50 },
+    ],
+    interests: [
+      { label: 'Yoga & Meditation',            weight: 0.95 },
+      { label: 'Running & Fitness',            weight: 0.80 },
+      { label: 'Philosophy of Mind',           weight: 0.75 },
+      { label: 'Music Theory',                 weight: 0.55 },
+      { label: 'Architecture',                 weight: 0.60 },
+    ],
+  },
+  {
+    id: 'p8', name: 'Jin Park', age: 26,
+    occupation: 'Sports Scientist & Biohacker', location: 'Seoul',
+    avatar_color: '#EF476F',
+    core_values: [
+      { label: 'Continuous Learning',          weight: 0.90 },
+      { label: 'Quality Over Speed',           weight: 0.85 },
+      { label: 'Sustainability',               weight: 0.78 },
+      { label: 'Intellectual Rigor',           weight: 0.82 },
+      { label: 'Creative Problem Solving',     weight: 0.75 },
+      { label: 'User Empowerment',             weight: 0.70 },
+    ],
+    long_term_goals: [
+      { label: 'Build an AI-Powered Product',  weight: 0.72 },
+      { label: 'Build a Wellness Community',   weight: 0.80 },
+      { label: 'Write a Technical Blog',       weight: 0.65 },
+      { label: 'Publish AI Safety Research',   weight: 0.55 },
+    ],
+    interests: [
+      { label: 'Running & Fitness',            weight: 0.92 },
+      { label: 'Biohacking & Longevity',       weight: 0.88 },
+      { label: 'Yoga & Meditation',            weight: 0.70 },
+      { label: 'Knowledge Graphs',             weight: 0.62 },
+      { label: 'Rock Climbing',                weight: 0.75 },
+    ],
+  },
+];
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 2. CONSTANTS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const CAT_COLORS = {
+  core_values:      '#00B4D8',
+  long_term_goals:  '#06D6A0',
+  interests:        '#FFD166',
+};
+const CAT_WEIGHTS_BASE = { core_values: 0.5, long_term_goals: 0.3, interests: 0.2 };
+const CATS = ['core_values', 'long_term_goals', 'interests'];
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 3. STATE
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const state = {
+  threshold:       0.30,
+  enabled:         new Set(CATS),
+  selectedProfile: null,
+  selectedPair:    null,
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 4. SCORING ENGINE
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function toWeightMap(items) {
+  const m = {};
+  (items || []).forEach(item => { m[item.label] = item.weight; });
+  return m;
+}
+
+function cosineSim(mapA, mapB) {
+  const shared = Object.keys(mapA).filter(l => l in mapB);
+  if (!shared.length) return 0;
+  const dot   = shared.reduce((s, l) => s + mapA[l] * mapB[l], 0);
+  const normA = Math.sqrt(Object.values(mapA).reduce((s, v) => s + v * v, 0));
+  const normB = Math.sqrt(Object.values(mapB).reduce((s, v) => s + v * v, 0));
+  return (normA && normB) ? dot / (normA * normB) : 0;
+}
+
+function getActiveWeights() {
+  const active = CATS.filter(c => state.enabled.has(c));
+  const total  = active.reduce((s, c) => s + CAT_WEIGHTS_BASE[c], 0);
+  const w = {};
+  active.forEach(c => { w[c] = CAT_WEIGHTS_BASE[c] / total; });
+  return w;
+}
+
+function scorePair(pA, pB) {
+  const weights = getActiveWeights();
+  let total = 0;
+  const catScores    = {};
+  const sharedTraits = [];
+
+  CATS.forEach(cat => {
+    const mapA  = toWeightMap(pA[cat]);
+    const mapB  = toWeightMap(pB[cat]);
+    const score = state.enabled.has(cat) ? cosineSim(mapA, mapB) : 0;
+    catScores[cat] = score;
+    total += score * (weights[cat] || 0);
+
+    Object.keys(mapA).forEach(label => {
+      if (label in mapB) {
+        sharedTraits.push({
+          label,
+          category:     cat,
+          score_a:      mapA[label],
+          score_b:      mapB[label],
+          contribution: mapA[label] * mapB[label] * (weights[cat] || 0),
+        });
+      }
+    });
+  });
+
+  sharedTraits.sort((a, b) => b.contribution - a.contribution);
+  return { total, catScores, sharedTraits };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 5. GRAPH STATE & INIT
+// ═══════════════════════════════════════════════════════════════════════════════
+
+let simulation   = null;
+let svgSel       = null;
+let gSel         = null;
+let edgeGroupSel = null;
+let nodeGroupSel = null;
+let currentEdges = [];
+
+function initGraph() {
+  const container = document.getElementById('graph-container');
+  const { width: W, height: H } = container.getBoundingClientRect();
+
+  svgSel = d3.select('#graph-container').append('svg')
+    .attr('width', '100%').attr('height', '100%');
+
+  // SVG filters
+  const defs = svgSel.append('defs');
+
+  // Soft glow filter for selected nodes
+  const glow = defs.append('filter').attr('id', 'node-glow').attr('x', '-50%').attr('y', '-50%').attr('width', '200%').attr('height', '200%');
+  glow.append('feGaussianBlur').attr('stdDeviation', '5').attr('result', 'blur');
+  const glowMerge = glow.append('feMerge');
+  glowMerge.append('feMergeNode').attr('in', 'blur');
+  glowMerge.append('feMergeNode').attr('in', 'SourceGraphic');
+
+  // Stronger glow for edges
+  const edgeGlow = defs.append('filter').attr('id', 'edge-glow');
+  edgeGlow.append('feGaussianBlur').attr('stdDeviation', '2.5').attr('result', 'blur');
+  const egMerge = edgeGlow.append('feMerge');
+  egMerge.append('feMergeNode').attr('in', 'blur');
+  egMerge.append('feMergeNode').attr('in', 'SourceGraphic');
+
+  // Zoom group
+  gSel = svgSel.append('g').attr('class', 'zoom-group');
+
+  // Star field (seeded for reproducibility)
+  const rng = mulberry32(97);
+  for (let i = 0; i < 140; i++) {
+    const size = rng() * 1.1 + 0.2;
+    gSel.append('circle')
+      .attr('cx',   rng() * W * 3.5 - W * 0.8)
+      .attr('cy',   rng() * H * 3.5 - H * 0.8)
+      .attr('r',    size)
+      .attr('fill', `rgba(255,255,255,${(rng() * 0.22 + 0.04).toFixed(2)})`)
+      .attr('pointer-events', 'none');
+  }
+
+  edgeGroupSel = gSel.append('g').attr('class', 'edges');
+  nodeGroupSel = gSel.append('g').attr('class', 'nodes');
+
+  // Zoom & pan
+  const zoom = d3.zoom().scaleExtent([0.25, 4])
+    .on('zoom', e => gSel.attr('transform', e.transform));
+  svgSel.call(zoom);
+  svgSel.on('dblclick.zoom', null);
+
+  // Background click → deselect
+  svgSel.on('click', () => {
+    state.selectedProfile = null;
+    state.selectedPair    = null;
+    clearHighlight();
+    updateCardSelection(null);
+    resetWhyPanel();
+  });
+
+  updateGraph();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 6. GRAPH UPDATE
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function buildGraphData() {
+  const nodes    = PROFILES.map(p => ({ ...p }));
+  const edges    = [];
+  const countMap = {};
+
+  for (let i = 0; i < PROFILES.length; i++) {
+    for (let j = i + 1; j < PROFILES.length; j++) {
+      const result = scorePair(PROFILES[i], PROFILES[j]);
+      if (result.total >= state.threshold) {
+        const sid = PROFILES[i].id, tid = PROFILES[j].id;
+        edges.push({
+          id: `${sid}_${tid}`, sourceId: sid, targetId: tid,
+          source: sid, target: tid,
+          score: result.total, catScores: result.catScores,
+          sharedTraits: result.sharedTraits,
+        });
+        countMap[sid] = (countMap[sid] || 0) + 1;
+        countMap[tid] = (countMap[tid] || 0) + 1;
+      }
+    }
+  }
+  nodes.forEach(n => { n.connectionCount = countMap[n.id] || 0; });
+  return { nodes, edges };
+}
+
+function nodeRadius(d) { return 13 + (d.connectionCount || 0) * 2.5; }
+
+function updateGraph() {
+  if (!gSel) return;
+  const { nodes, edges } = buildGraphData();
+  currentEdges = edges;
+
+  // Update connection badges on cards
+  nodes.forEach(n => {
+    const badge = document.getElementById(`badge-${n.id}`);
+    if (badge) {
+      badge.textContent = n.connectionCount;
+      badge.classList.toggle('live', n.connectionCount > 0);
+    }
+  });
+
+  edgeGroupSel.selectAll('*').remove();
+  nodeGroupSel.selectAll('*').remove();
+  if (simulation) simulation.stop();
+
+  const { width: W, height: H } = document.getElementById('graph-container').getBoundingClientRect();
+
+  // ── Edges ──
+  const edgeSel = edgeGroupSel.selectAll('line').data(edges).join('line')
+    .attr('class', 'edge')
+    .attr('id',    d => `edge-${d.id}`)
+    .attr('stroke', 'rgba(255,255,255,0.09)')
+    .attr('stroke-width',   d => 1 + d.score * 5)
+    .attr('stroke-linecap', 'round')
+    .style('cursor', 'pointer')
+    .on('click', (event, d) => {
+      event.stopPropagation();
+      state.selectedProfile = null;
+      state.selectedPair    = [d.sourceId, d.targetId];
+      clearHighlight();
+      applyPairHighlight(d.sourceId, d.targetId);
+      updateCardSelection(null);
+      showWhyPanel(d.sourceId, d.targetId);
+    })
+    .on('mouseover', (event, d) => {
+      d3.select(event.currentTarget)
+        .attr('stroke', 'rgba(255,255,255,0.28)')
+        .attr('stroke-width', 2 + d.score * 5.5);
+      showTooltip(event, `${(d.score * 100).toFixed(0)}% match`);
+    })
+    .on('mouseout', (event, d) => {
+      if (!state.selectedPair && !state.selectedProfile) {
+        d3.select(event.currentTarget)
+          .attr('stroke', 'rgba(255,255,255,0.09)')
+          .attr('stroke-width', 1 + d.score * 5);
+      }
+      hideTooltip();
+    });
+
+  // ── Nodes ──
+  const nodeSel = nodeGroupSel.selectAll('g').data(nodes).join('g')
+    .attr('class', 'node')
+    .attr('id',    d => `node-${d.id}`)
+    .style('cursor', 'pointer')
+    .call(d3.drag()
+      .on('start', (e, d) => { if (!e.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
+      .on('drag',  (e, d) => { d.fx = e.x; d.fy = e.y; })
+      .on('end',   (e, d) => { if (!e.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; }))
+    .on('click', (event, d) => { event.stopPropagation(); selectProfile(d.id); })
+    .on('mouseover', (event, d) => {
+      if (state.selectedProfile !== d.id) {
+        d3.select(event.currentTarget).select('.node-circle')
+          .attr('stroke', hexToRgba(d.avatar_color, 0.55))
+          .attr('stroke-width', 2);
+      }
+    })
+    .on('mouseout', (event, d) => {
+      if (state.selectedProfile !== d.id) {
+        d3.select(event.currentTarget).select('.node-circle')
+          .attr('stroke', 'rgba(255,255,255,0.14)')
+          .attr('stroke-width', 1.5);
+      }
+    });
+
+  // Outer soft ring
+  nodeSel.append('circle')
+    .attr('class', 'node-ring')
+    .attr('r',    d => nodeRadius(d) + 5)
+    .attr('fill', 'none')
+    .attr('stroke', d => hexToRgba(d.avatar_color, 0.12))
+    .attr('stroke-width', 4)
+    .attr('pointer-events', 'none');
+
+  // Main circle
+  nodeSel.append('circle')
+    .attr('class', 'node-circle')
+    .attr('r',            d => nodeRadius(d))
+    .attr('fill',         d => d.avatar_color)
+    .attr('fill-opacity', 0.90)
+    .attr('stroke',       'rgba(255,255,255,0.14)')
+    .attr('stroke-width', 1.5);
+
+  // Initials text
+  nodeSel.append('text')
+    .attr('text-anchor', 'middle').attr('dominant-baseline', 'central')
+    .attr('fill', 'rgba(0,0,0,0.82)').attr('font-size', '10.5px').attr('font-weight', '700')
+    .attr('font-family', "'Inter', sans-serif").attr('pointer-events', 'none')
+    .text(d => initials(d.name));
+
+  // First name label
+  nodeSel.append('text')
+    .attr('class', 'node-label')
+    .attr('text-anchor', 'middle').attr('dy', d => nodeRadius(d) + 14)
+    .attr('fill', 'rgba(255,255,255,0.52)').attr('font-size', '10px')
+    .attr('font-family', "'Inter', sans-serif").attr('pointer-events', 'none')
+    .text(d => d.name.split(' ')[0]);
+
+  // ── Force simulation ──
+  simulation = d3.forceSimulation(nodes)
+    .force('link',      d3.forceLink(edges).id(d => d.id)
+                          .strength(d => 0.35 + d.score * 0.85)
+                          .distance(d => 230 - d.score * 140))
+    .force('charge',    d3.forceManyBody().strength(-420))
+    .force('center',    d3.forceCenter(W / 2, H / 2))
+    .force('collision', d3.forceCollide().radius(d => nodeRadius(d) + 14))
+    .on('tick', () => {
+      edgeSel
+        .attr('x1', d => d.source.x).attr('y1', d => d.source.y)
+        .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
+      nodeSel.attr('transform', d => `translate(${d.x},${d.y})`);
+    });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 7. HIGHLIGHTING
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function clearHighlight() {
+  nodeGroupSel.selectAll('.node-pulse').remove();
+
+  edgeGroupSel.selectAll('.edge')
+    .attr('stroke', 'rgba(255,255,255,0.09)')
+    .attr('stroke-width', d => 1 + d.score * 5)
+    .attr('stroke-opacity', null)
+    .attr('filter', null);
+
+  nodeGroupSel.selectAll('.node-circle')
+    .attr('stroke', 'rgba(255,255,255,0.14)').attr('stroke-width', 1.5)
+    .attr('fill-opacity', 0.90).attr('filter', null);
+  nodeGroupSel.selectAll('.node-ring')
+    .attr('stroke', d => hexToRgba(d.avatar_color || '#fff', 0.12));
+  nodeGroupSel.selectAll('.node-label')
+    .attr('fill', 'rgba(255,255,255,0.52)');
+}
+
+function applyProfileHighlight(pid) {
+  nodeGroupSel.selectAll('.node-pulse').remove();
+
+  // Dim all
+  edgeGroupSel.selectAll('.edge')
+    .attr('stroke', 'rgba(255,255,255,0.03)').attr('stroke-width', 1);
+  nodeGroupSel.selectAll('.node-circle')
+    .attr('stroke', 'rgba(255,255,255,0.04)').attr('fill-opacity', 0.15).attr('filter', null);
+  nodeGroupSel.selectAll('.node-ring')
+    .attr('stroke', 'rgba(255,255,255,0.02)');
+  nodeGroupSel.selectAll('.node-label')
+    .attr('fill', 'rgba(255,255,255,0.14)');
+
+  // Selected node — glow filter + bright stroke
+  const pProfile = PROFILES.find(x => x.id === pid);
+  const r        = nodeRadius({ connectionCount: currentEdges.filter(e => e.sourceId === pid || e.targetId === pid).length });
+
+  d3.select(`#node-${pid}`).select('.node-circle')
+    .attr('stroke', '#fff').attr('stroke-width', 2.5)
+    .attr('fill-opacity', 1).attr('filter', 'url(#node-glow)');
+  d3.select(`#node-${pid}`).select('.node-ring')
+    .attr('stroke', hexToRgba(pProfile.avatar_color, 0.35));
+  d3.select(`#node-${pid}`).select('.node-label')
+    .attr('fill', 'rgba(255,255,255,0.90)');
+
+  // Pulse ring animation
+  d3.select(`#node-${pid}`).append('circle')
+    .attr('class', 'node-pulse')
+    .attr('r', r + 3)
+    .attr('fill', 'none')
+    .attr('stroke', pProfile.avatar_color)
+    .attr('stroke-width', 1.8)
+    .attr('pointer-events', 'none');
+
+  // Highlight connected edges + neighbors
+  edgeGroupSel.selectAll('.edge').each(function(d) {
+    const src = d.source.id || d.source;
+    const tgt = d.target.id || d.target;
+    if (src === pid || tgt === pid) {
+      d3.select(this)
+        .attr('stroke', '#00B4D8').attr('stroke-opacity', 0.80)
+        .attr('stroke-width', 1.5 + d.score * 7)
+        .attr('filter', 'url(#edge-glow)');
+      const other = src === pid ? tgt : src;
+      const op = PROFILES.find(x => x.id === other);
+      d3.select(`#node-${other}`).select('.node-circle')
+        .attr('stroke', hexToRgba(op ? op.avatar_color : '#fff', 0.45))
+        .attr('stroke-width', 1.8).attr('fill-opacity', 0.78);
+      d3.select(`#node-${other}`).select('.node-ring')
+        .attr('stroke', hexToRgba(op ? op.avatar_color : '#fff', 0.18));
+      d3.select(`#node-${other}`).select('.node-label')
+        .attr('fill', 'rgba(255,255,255,0.68)');
+    }
+  });
+}
+
+function applyPairHighlight(idA, idB) {
+  nodeGroupSel.selectAll('.node-pulse').remove();
+
+  edgeGroupSel.selectAll('.edge')
+    .attr('stroke', 'rgba(255,255,255,0.03)').attr('stroke-width', 1).attr('filter', null);
+  nodeGroupSel.selectAll('.node-circle')
+    .attr('stroke', 'rgba(255,255,255,0.04)').attr('fill-opacity', 0.15).attr('filter', null);
+  nodeGroupSel.selectAll('.node-ring')
+    .attr('stroke', 'rgba(255,255,255,0.02)');
+  nodeGroupSel.selectAll('.node-label')
+    .attr('fill', 'rgba(255,255,255,0.14)');
+
+  edgeGroupSel.selectAll('.edge').each(function(d) {
+    const src = d.source.id || d.source;
+    const tgt = d.target.id || d.target;
+    if ((src === idA && tgt === idB) || (src === idB && tgt === idA)) {
+      d3.select(this)
+        .attr('stroke', '#00B4D8').attr('stroke-opacity', 1)
+        .attr('stroke-width', 5).attr('filter', 'url(#edge-glow)');
+    }
+  });
+
+  [idA, idB].forEach(id => {
+    const p = PROFILES.find(x => x.id === id);
+    const r = nodeRadius({ connectionCount: currentEdges.filter(e => e.sourceId === id || e.targetId === id).length });
+    d3.select(`#node-${id}`).select('.node-circle')
+      .attr('stroke', '#fff').attr('stroke-width', 2.5)
+      .attr('fill-opacity', 1).attr('filter', 'url(#node-glow)');
+    d3.select(`#node-${id}`).select('.node-ring')
+      .attr('stroke', hexToRgba(p ? p.avatar_color : '#fff', 0.32));
+    d3.select(`#node-${id}`).select('.node-label')
+      .attr('fill', 'rgba(255,255,255,0.90)');
+    d3.select(`#node-${id}`).append('circle')
+      .attr('class', 'node-pulse')
+      .attr('r', r + 3).attr('fill', 'none')
+      .attr('stroke', p ? p.avatar_color : '#00B4D8')
+      .attr('stroke-width', 1.8).attr('pointer-events', 'none');
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 8. SELECTION
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function selectProfile(pid) {
+  state.selectedProfile = pid;
+  state.selectedPair    = null;
+  clearHighlight();
+  applyProfileHighlight(pid);
+  updateCardSelection(pid);
+
+  const connected = currentEdges.filter(e => e.sourceId === pid || e.targetId === pid);
+  if (connected.length) {
+    connected.sort((a, b) => b.score - a.score);
+    showWhyPanel(connected[0].sourceId, connected[0].targetId);
+  } else {
+    showNoConnections(pid);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 9. TOOLTIP
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function showTooltip(event, text) {
+  const t = document.getElementById('tooltip');
+  t.textContent   = text;
+  t.style.left    = (event.pageX + 14) + 'px';
+  t.style.top     = (event.pageY - 32) + 'px';
+  t.style.opacity = '1';
+}
+function hideTooltip() { document.getElementById('tooltip').style.opacity = '0'; }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 10. PROFILE CARDS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function initials(name) { return name.split(' ').map(w => w[0]).join(''); }
+
+function renderCards() {
+  const grid = document.getElementById('profile-grid');
+  grid.innerHTML = '';
+
+  PROFILES.forEach((p, i) => {
+    const all = [
+      ...p.core_values.map(t     => ({ ...t, cat: 'core_values'    })),
+      ...p.long_term_goals.map(t => ({ ...t, cat: 'long_term_goals' })),
+      ...p.interests.map(t       => ({ ...t, cat: 'interests'       })),
+    ].sort((a, b) => b.weight - a.weight).slice(0, 3);
+
+    const card     = document.createElement('div');
+    card.className = 'profile-card';
+    card.id        = `card-${p.id}`;
+
+    // Stagger entrance animation
+    card.style.animationDelay = `${i * 50}ms`;
+    // Per-profile accent line at top
+    card.style.setProperty('--accent-color', p.avatar_color);
+    card.style.cssText += `--accent-color:${p.avatar_color};`;
+
+    card.innerHTML = `
+      <div class="card-header">
+        <div class="avatar" style="background:${p.avatar_color}">${initials(p.name)}</div>
+        <div class="card-info">
+          <div class="card-name">${p.name}</div>
+          <div class="card-occ">${p.occupation}</div>
+          <div class="card-loc">${p.location}</div>
+        </div>
+        <div class="card-badge" id="badge-${p.id}" title="Active connections">0</div>
+      </div>
+      <div class="card-traits">
+        ${all.map(t => `
+          <div class="trait-row">
+            <span class="trait-chip" style="background:${CAT_COLORS[t.cat]}15;border-color:${CAT_COLORS[t.cat]}38;color:${CAT_COLORS[t.cat]}">${t.label}</span>
+            <div class="trait-bar-bg"><div class="trait-bar" style="width:${(t.weight*100).toFixed(0)}%;background:${CAT_COLORS[t.cat]}"></div></div>
+            <span class="trait-pct">${(t.weight*100).toFixed(0)}</span>
+          </div>
+        `).join('')}
+      </div>
+    `;
+
+    // Avatar glow
+    const avatarEl = card.querySelector('.avatar');
+    avatarEl.style.boxShadow = `0 0 0 2px ${hexToRgba(p.avatar_color, 0.30)}, 0 0 12px ${hexToRgba(p.avatar_color, 0.18)}`;
+
+    // Top accent line
+    card.style.setProperty('--top-border', p.avatar_color);
+    card.querySelector('.card-header').insertAdjacentHTML('beforebegin',
+      `<div style="position:absolute;top:0;left:0;right:0;height:2px;border-radius:14px 14px 0 0;background:linear-gradient(90deg,${hexToRgba(p.avatar_color,0)},${hexToRgba(p.avatar_color,0.55)},${hexToRgba(p.avatar_color,0)})"></div>`
+    );
+
+    card.addEventListener('click', () => selectProfile(p.id));
+    grid.appendChild(card);
+  });
+}
+
+function updateCardSelection(pid) {
+  PROFILES.forEach(p => {
+    const card = document.getElementById(`card-${p.id}`);
+    if (!card) return;
+    card.classList.remove('selected');
+    card.style.borderColor = 'rgba(255,255,255,0.08)';
+    card.style.boxShadow   = '';
+  });
+  if (pid) {
+    const p    = PROFILES.find(x => x.id === pid);
+    const card = document.getElementById(`card-${pid}`);
+    if (card && p) {
+      card.classList.add('selected');
+      card.style.borderColor = hexToRgba(p.avatar_color, 0.38);
+      card.style.boxShadow   = `0 0 0 1px ${hexToRgba(p.avatar_color, 0.18)}, 0 8px 24px rgba(0,0,0,0.28)`;
+      card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 11. WHY PANEL
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function showWhyPanel(idA, idB) {
+  const pA = PROFILES.find(p => p.id === idA);
+  const pB = PROFILES.find(p => p.id === idB);
+  if (!pA || !pB) return;
+
+  const result = scorePair(pA, pB);
+  const panel  = document.getElementById('why-panel');
+
+  const catHtml = CATS
+    .filter(c => state.enabled.has(c))
+    .map(c => {
+      const lbl = { core_values: 'Values', long_term_goals: 'Goals', interests: 'Interests' }[c];
+      return `<span class="score-cat" style="color:${CAT_COLORS[c]}">${lbl}: <b>${(result.catScores[c]*100).toFixed(0)}%</b></span>`;
+    }).join('<span class="score-sep"> · </span>');
+
+  const totalPct = (result.total * 100).toFixed(0);
+
+  panel.innerHTML = `
+    <div class="why-header">
+      <div class="why-avatars">
+        <div class="why-avatar" style="background:${pA.avatar_color};box-shadow:0 0 0 2px ${hexToRgba(pA.avatar_color,0.35)},0 0 10px ${hexToRgba(pA.avatar_color,0.20)}">${initials(pA.name)}</div>
+        <div class="why-connector">
+          <div class="why-score-badge" style="background:linear-gradient(135deg,${hexToRgba(pA.avatar_color,0.18)},${hexToRgba(pB.avatar_color,0.18)});border-color:${hexToRgba(pA.avatar_color,0.42)};color:#fff">${totalPct}%</div>
+        </div>
+        <div class="why-avatar" style="background:${pB.avatar_color};box-shadow:0 0 0 2px ${hexToRgba(pB.avatar_color,0.35)},0 0 10px ${hexToRgba(pB.avatar_color,0.20)}">${initials(pB.name)}</div>
+      </div>
+      <div class="why-title">
+        <div class="why-names">${pA.name} <span style="color:rgba(255,255,255,0.25);font-weight:300">×</span> ${pB.name}</div>
+        <div class="why-cats">${catHtml}</div>
+      </div>
+    </div>
+    <div class="why-bars" id="why-bars"></div>
+  `;
+
+  renderWhyBars(result.sharedTraits.slice(0, 8));
+}
+
+function showNoConnections(pid) {
+  const p = PROFILES.find(x => x.id === pid);
+  document.getElementById('why-panel').innerHTML = `
+    <div class="why-empty">
+      <div class="why-avatar" style="width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:rgba(0,0,0,0.82);background:${p.avatar_color};box-shadow:0 0 0 2px ${hexToRgba(p.avatar_color,0.35)}">${initials(p.name)}</div>
+      <div style="color:rgba(255,255,255,0.38);font-size:13px;font-weight:500;margin-top:4px">No connections above threshold</div>
+      <div style="color:rgba(255,255,255,0.22);font-size:11px">Try lowering the minimum strength slider</div>
+    </div>
+  `;
+}
+
+function resetWhyPanel() {
+  document.getElementById('why-panel').innerHTML = `
+    <div class="why-placeholder">
+      <div class="why-placeholder-icon">⟡</div>
+      <span>Click a person or connection to explore why they're matched</span>
+    </div>
+  `;
+}
+
+function renderWhyBars(traits) {
+  const container = document.getElementById('why-bars');
+  if (!container || !traits.length) return;
+
+  const maxC = Math.max(...traits.map(t => t.contribution), 0.001);
+
+  container.innerHTML = traits.map(t => {
+    const pct   = (t.contribution / maxC) * 100;
+    const color = CAT_COLORS[t.category];
+    return `
+      <div class="why-bar-row">
+        <div class="why-bar-label">
+          <span class="why-bar-dot" style="background:${color}"></span>
+          <span>${t.label}</span>
+        </div>
+        <div class="why-bar-track">
+          <div class="why-bar-fill" style="background:linear-gradient(90deg,${color}99,${color})" data-pct="${pct.toFixed(1)}"></div>
+        </div>
+        <div class="why-bar-pcts">${(t.score_a*100).toFixed(0)}% · ${(t.score_b*100).toFixed(0)}%</div>
+      </div>
+    `;
+  }).join('');
+
+  requestAnimationFrame(() => {
+    container.querySelectorAll('.why-bar-fill').forEach(el => {
+      el.style.transition = 'width 0.45s cubic-bezier(0.25,0.46,0.45,0.94)';
+      el.style.width      = el.dataset.pct + '%';
+    });
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 12. CONTROLS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function initControls() {
+  const slider = document.getElementById('threshold-slider');
+  const label  = document.getElementById('threshold-value');
+
+  slider.addEventListener('input', () => {
+    state.threshold   = parseFloat(slider.value);
+    label.textContent = state.threshold.toFixed(2);
+    updateGraph();
+    if      (state.selectedProfile) selectProfile(state.selectedProfile);
+    else if (state.selectedPair)    showWhyPanel(...state.selectedPair);
+  });
+
+  document.querySelectorAll('.cat-toggle').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const cat = btn.dataset.cat;
+      if (state.enabled.has(cat)) {
+        if (state.enabled.size > 1) { state.enabled.delete(cat); btn.classList.remove('active'); }
+      } else {
+        state.enabled.add(cat); btn.classList.add('active');
+      }
+      updateGraph();
+      if      (state.selectedProfile) selectProfile(state.selectedProfile);
+      else if (state.selectedPair)    showWhyPanel(...state.selectedPair);
+    });
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 13. UTILITIES
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function mulberry32(seed) {
+  return function() {
+    seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+    let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+function hexToRgba(hex, alpha) {
+  const r = parseInt(hex.slice(1,3), 16);
+  const g = parseInt(hex.slice(3,5), 16);
+  const b = parseInt(hex.slice(5,7), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 14. RESIZE
+// ═══════════════════════════════════════════════════════════════════════════════
+
+window.addEventListener('resize', () => {
+  if (!simulation) return;
+  const { width: W, height: H } = document.getElementById('graph-container').getBoundingClientRect();
+  simulation.force('center', d3.forceCenter(W / 2, H / 2)).alpha(0.15).restart();
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 15. BOOTSTRAP
+// ═══════════════════════════════════════════════════════════════════════════════
+
+document.addEventListener('DOMContentLoaded', () => {
+  renderCards();
+  initControls();
+  requestAnimationFrame(initGraph);
+});
+</script>
+</body>
+</html>
