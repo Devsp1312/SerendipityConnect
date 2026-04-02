@@ -49,6 +49,7 @@
       background: linear-gradient(180deg, rgba(0,180,216,0.05) 0%, transparent 100%);
       border-bottom: 1px solid transparent;
       position: relative;
+      z-index: 1;
     }
     header::after {
       content: '';
@@ -109,6 +110,8 @@
       flex-wrap: wrap;
       background: rgba(255,255,255,0.012);
       backdrop-filter: blur(18px);
+      position: relative;
+      z-index: 1;
     }
     .control-divider { width: 1px; height: 18px; background: rgba(255,255,255,0.09); }
     .control-group { display: flex; align-items: center; gap: 10px; }
@@ -286,8 +289,9 @@
         radial-gradient(ellipse at 82% 72%, rgba(247,37,133,0.03) 0%, transparent 38%),
         radial-gradient(ellipse at 45% 55%, rgba(255,158,0,0.02) 0%, transparent 45%);
       box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+      isolation: isolate;
     }
-    #graph-container svg { display: block; }
+    #graph-container svg { display: block; overflow: hidden; }
 
     /* Node pulse animation */
     @keyframes pulse-ring {
@@ -489,6 +493,14 @@
     }
 
     @media (max-width: 640px) {
+      body {
+        background:
+          radial-gradient(circle at 50% -8%, rgba(0,180,216,0.07) 0%, transparent 34%),
+          linear-gradient(180deg, #090d13 0%, #06080d 54%, #05070c 100%);
+      }
+      header {
+        padding: 14px 14px 10px;
+      }
       header h1 { font-size: 22px; }
       header p {
         font-size: 10.5px;
@@ -542,10 +554,22 @@
       }
       #app {
         padding: 0 14px calc(20px + env(safe-area-inset-bottom));
+        gap: 12px;
+      }
+      #left-panel {
+        overflow: visible;
+      }
+      #profile-grid {
+        display: grid;
+        grid-template-columns: 1fr;
         gap: 10px;
+        overflow: visible;
+        padding: 0;
+        scroll-snap-type: none;
       }
       .profile-card {
-        min-width: min(84vw, 320px);
+        min-width: 0;
+        width: 100%;
       }
       .card-name {
         font-size: 13px;
@@ -558,7 +582,8 @@
         max-width: 110px;
       }
       #graph-container {
-        min-height: 46svh;
+        min-height: 38svh;
+        max-height: 420px;
         border-radius: 22px;
       }
       #why-panel {
@@ -586,27 +611,29 @@
         margin-top: 2px;
         gap: 6px;
       }
+      .why-bar-row {
+        display: grid;
+        grid-template-columns: minmax(0, 96px) minmax(0, 1fr) auto;
+        gap: 6px;
+      }
       .why-bar-label {
-        width: 104px;
-        min-width: 104px;
+        width: auto;
+        min-width: 0;
       }
       .why-bar-pcts {
-        width: 50px;
-        min-width: 50px;
+        width: auto;
+        min-width: 42px;
         font-size: 9px;
       }
     }
 
     @media (max-width: 430px) {
-      .profile-card {
-        min-width: calc(100vw - 28px);
-      }
+      header h1 { font-size: 20px; }
       .why-bar-row {
-        gap: 6px;
+        grid-template-columns: minmax(0, 82px) minmax(0, 1fr) auto;
       }
       .why-bar-label {
-        width: 92px;
-        min-width: 92px;
+        font-size: 10px;
       }
     }
 
@@ -1059,7 +1086,38 @@ function buildGraphData() {
   return { nodes, edges };
 }
 
-function nodeRadius(d) { return 13 + (d.connectionCount || 0) * 2.5; }
+function graphMetrics(width, height) {
+  const compact = width <= 640;
+  const tiny = width <= 430;
+
+  return {
+    compact,
+    tiny,
+    ringOffset: compact ? 4 : 5,
+    labelOffset: compact ? 12 : 14,
+    tokenFontSize: compact ? '9.5px' : '10.5px',
+    labelFontSize: compact ? '9px' : '10px',
+    charge: compact ? (tiny ? -155 : -200) : -420,
+    collisionPad: compact ? 10 : 14,
+    paddingX: compact ? 22 : 34,
+    paddingTop: compact ? 24 : 36,
+    paddingBottom: compact ? 30 : 42,
+    spreadX: compact ? Math.max(34, Math.min(width * 0.18, 74)) : Math.max(120, Math.min(width * 0.28, 240)),
+    spreadY: compact ? Math.max(30, Math.min(height * 0.16, 70)) : Math.max(90, Math.min(height * 0.22, 180)),
+    linkStrength(d) {
+      return compact ? 0.44 + d.score * 0.48 : 0.35 + d.score * 0.85;
+    },
+    linkDistance(d) {
+      if (!compact) return 230 - d.score * 140;
+      return (tiny ? 62 : 72) + (1 - d.score) * (tiny ? 28 : 40);
+    },
+  };
+}
+
+function nodeRadius(d, width = document.getElementById('graph-container')?.getBoundingClientRect().width || window.innerWidth) {
+  const compact = width <= 640;
+  return (compact ? 11 : 13) + (d.connectionCount || 0) * (compact ? 1.9 : 2.5);
+}
 
 function updateGraph() {
   if (!gSel) return;
@@ -1080,6 +1138,13 @@ function updateGraph() {
   if (simulation) simulation.stop();
 
   const { width: W, height: H } = document.getElementById('graph-container').getBoundingClientRect();
+  const metrics = graphMetrics(W, H);
+
+  nodes.forEach((node, index) => {
+    const angle = (index / Math.max(nodes.length, 1)) * Math.PI * 2 - Math.PI / 2;
+    node.x = W / 2 + Math.cos(angle) * metrics.spreadX;
+    node.y = H / 2 + Math.sin(angle) * metrics.spreadY;
+  });
 
   // ── Edges ──
   const edgeSel = edgeGroupSel.selectAll('line').data(edges).join('line')
@@ -1141,7 +1206,7 @@ function updateGraph() {
   // Outer soft ring
   nodeSel.append('circle')
     .attr('class', 'node-ring')
-    .attr('r',    d => nodeRadius(d) + 5)
+    .attr('r',    d => nodeRadius(d, W) + metrics.ringOffset)
     .attr('fill', 'none')
     .attr('stroke', d => hexToRgba(d.avatar_color, 0.12))
     .attr('stroke-width', 4)
@@ -1150,7 +1215,7 @@ function updateGraph() {
   // Main circle
   nodeSel.append('circle')
     .attr('class', 'node-circle')
-    .attr('r',            d => nodeRadius(d))
+    .attr('r',            d => nodeRadius(d, W))
     .attr('fill',         d => d.avatar_color)
     .attr('fill-opacity', 0.90)
     .attr('stroke',       'rgba(255,255,255,0.14)')
@@ -1159,27 +1224,38 @@ function updateGraph() {
   // Compact user token inside the node
   nodeSel.append('text')
     .attr('text-anchor', 'middle').attr('dominant-baseline', 'central')
-    .attr('fill', 'rgba(0,0,0,0.82)').attr('font-size', '10.5px').attr('font-weight', '700')
+    .attr('fill', 'rgba(0,0,0,0.82)').attr('font-size', metrics.tokenFontSize).attr('font-weight', '700')
     .attr('font-family', "'Space Grotesk', 'Inter', sans-serif").attr('pointer-events', 'none')
     .text(d => userGlyph(d));
 
   // Short ID label under each node
   nodeSel.append('text')
     .attr('class', 'node-label')
-    .attr('text-anchor', 'middle').attr('dy', d => nodeRadius(d) + 14)
-    .attr('fill', 'rgba(255,255,255,0.52)').attr('font-size', '10px')
+    .attr('text-anchor', 'middle').attr('dy', d => nodeRadius(d, W) + metrics.labelOffset)
+    .attr('fill', 'rgba(255,255,255,0.52)').attr('font-size', metrics.labelFontSize)
     .attr('font-family', "'Space Grotesk', 'Inter', sans-serif").attr('pointer-events', 'none')
     .text(d => shortUserId(d));
 
   // ── Force simulation ──
   simulation = d3.forceSimulation(nodes)
     .force('link',      d3.forceLink(edges).id(d => d.id)
-                          .strength(d => 0.35 + d.score * 0.85)
-                          .distance(d => 230 - d.score * 140))
-    .force('charge',    d3.forceManyBody().strength(-420))
+                          .strength(d => metrics.linkStrength(d))
+                          .distance(d => metrics.linkDistance(d)))
+    .force('charge',    d3.forceManyBody().strength(metrics.charge))
     .force('center',    d3.forceCenter(W / 2, H / 2))
-    .force('collision', d3.forceCollide().radius(d => nodeRadius(d) + 14))
+    .force('collision', d3.forceCollide().radius(d => nodeRadius(d, W) + metrics.collisionPad))
+    .alpha(0.9)
     .on('tick', () => {
+      nodes.forEach(d => {
+        const radius = nodeRadius(d, W);
+        const minX = radius + metrics.paddingX;
+        const maxX = W - radius - metrics.paddingX;
+        const minY = radius + metrics.paddingTop;
+        const maxY = H - radius - metrics.paddingBottom;
+        d.x = Math.max(minX, Math.min(maxX, d.x));
+        d.y = Math.max(minY, Math.min(maxY, d.y));
+      });
+
       edgeSel
         .attr('x1', d => d.source.x).attr('y1', d => d.source.y)
         .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
@@ -1570,10 +1646,25 @@ function hexToRgba(hex, alpha) {
 // 14. RESIZE
 // ═══════════════════════════════════════════════════════════════════════════════
 
+let resizeFrame = 0;
+
 window.addEventListener('resize', () => {
-  if (!simulation) return;
-  const { width: W, height: H } = document.getElementById('graph-container').getBoundingClientRect();
-  simulation.force('center', d3.forceCenter(W / 2, H / 2)).alpha(0.15).restart();
+  cancelAnimationFrame(resizeFrame);
+  resizeFrame = requestAnimationFrame(() => {
+    if (!gSel) return;
+    updateGraph();
+
+    if (state.selectedProfile) {
+      selectProfile(state.selectedProfile);
+      return;
+    }
+
+    if (state.selectedPair) {
+      clearHighlight();
+      applyPairHighlight(...state.selectedPair);
+      showWhyPanel(...state.selectedPair);
+    }
+  });
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
