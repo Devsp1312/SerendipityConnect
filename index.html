@@ -996,6 +996,11 @@ let gSel         = null;
 let edgeGroupSel = null;
 let nodeGroupSel = null;
 let currentEdges = [];
+let zoomBehavior = null;
+
+function isCompactViewport() {
+  return window.innerWidth <= 640 || window.matchMedia('(pointer: coarse)').matches;
+}
 
 function initGraph() {
   const container = document.getElementById('graph-container');
@@ -1040,10 +1045,16 @@ function initGraph() {
   nodeGroupSel = gSel.append('g').attr('class', 'nodes');
 
   // Zoom & pan
-  const zoom = d3.zoom().scaleExtent([0.25, 4])
+  zoomBehavior = d3.zoom().scaleExtent([0.25, 4])
     .on('zoom', e => gSel.attr('transform', e.transform));
-  svgSel.call(zoom);
-  svgSel.on('dblclick.zoom', null);
+
+  if (isCompactViewport()) {
+    svgSel.style('touch-action', 'pan-y');
+  } else {
+    svgSel.call(zoomBehavior);
+    svgSel.on('dblclick.zoom', null);
+    svgSel.style('touch-action', 'none');
+  }
 
   // Background click → deselect
   svgSel.on('click', () => {
@@ -1139,6 +1150,19 @@ function updateGraph() {
 
   const { width: W, height: H } = document.getElementById('graph-container').getBoundingClientRect();
   const metrics = graphMetrics(W, H);
+  const compactViewport = isCompactViewport();
+
+  if (compactViewport) {
+    gSel.attr('transform', null);
+    if (svgSel) {
+      svgSel.on('.zoom', null);
+      svgSel.style('touch-action', 'pan-y');
+    }
+  } else if (svgSel && zoomBehavior) {
+    svgSel.call(zoomBehavior);
+    svgSel.on('dblclick.zoom', null);
+    svgSel.style('touch-action', 'none');
+  }
 
   nodes.forEach((node, index) => {
     const angle = (index / Math.max(nodes.length, 1)) * Math.PI * 2 - Math.PI / 2;
@@ -1183,10 +1207,6 @@ function updateGraph() {
     .attr('class', 'node')
     .attr('id',    d => `node-${d.id}`)
     .style('cursor', 'pointer')
-    .call(d3.drag()
-      .on('start', (e, d) => { if (!e.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
-      .on('drag',  (e, d) => { d.fx = e.x; d.fy = e.y; })
-      .on('end',   (e, d) => { if (!e.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; }))
     .on('click', (event, d) => { event.stopPropagation(); selectProfile(d.id); })
     .on('mouseover', (event, d) => {
       if (state.selectedProfile !== d.id) {
@@ -1202,6 +1222,13 @@ function updateGraph() {
           .attr('stroke-width', 1.5);
       }
     });
+
+  if (!compactViewport) {
+    nodeSel.call(d3.drag()
+      .on('start', (e, d) => { if (!e.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
+      .on('drag',  (e, d) => { d.fx = e.x; d.fy = e.y; })
+      .on('end',   (e, d) => { if (!e.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; }));
+  }
 
   // Outer soft ring
   nodeSel.append('circle')
