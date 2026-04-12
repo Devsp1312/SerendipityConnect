@@ -291,7 +291,12 @@
       box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
       isolation: isolate;
     }
-    #graph-container svg { display: block; overflow: hidden; }
+    #graph-container svg {
+      display: block;
+      overflow: hidden;
+      width: 100%;
+      height: 100%;
+    }
 
     /* Node pulse animation */
     @keyframes pulse-ring {
@@ -1004,39 +1009,36 @@ function isCompactViewport() {
 
 function initGraph() {
   const container = document.getElementById('graph-container');
-  const { width: W, height: H } = container.getBoundingClientRect();
+  let W = container.clientWidth;
+  let H = container.clientHeight;
 
   svgSel = d3.select('#graph-container').append('svg')
-    .attr('width', '100%').attr('height', '100%');
+    .attr('viewBox', `0 0 ${W} ${H}`)
+    .attr('preserveAspectRatio', 'xMidYMid meet');
 
   // SVG filters
   const defs = svgSel.append('defs');
-
-  // Soft glow filter for selected nodes
+  // ... (rest of the defs are fine)
   const glow = defs.append('filter').attr('id', 'node-glow').attr('x', '-50%').attr('y', '-50%').attr('width', '200%').attr('height', '200%');
   glow.append('feGaussianBlur').attr('stdDeviation', '5').attr('result', 'blur');
   const glowMerge = glow.append('feMerge');
   glowMerge.append('feMergeNode').attr('in', 'blur');
   glowMerge.append('feMergeNode').attr('in', 'SourceGraphic');
 
-  // Stronger glow for edges
   const edgeGlow = defs.append('filter').attr('id', 'edge-glow');
   edgeGlow.append('feGaussianBlur').attr('stdDeviation', '2.5').attr('result', 'blur');
   const egMerge = edgeGlow.append('feMerge');
   egMerge.append('feMergeNode').attr('in', 'blur');
   egMerge.append('feMergeNode').attr('in', 'SourceGraphic');
 
-  // Zoom group
   gSel = svgSel.append('g').attr('class', 'zoom-group');
 
-  // Star field (seeded for reproducibility)
   const rng = mulberry32(97);
+  const starGroup = gSel.append('g').attr('class', 'stars');
   for (let i = 0; i < 140; i++) {
     const size = rng() * 1.1 + 0.2;
-    gSel.append('circle')
-      .attr('cx',   rng() * W * 3.5 - W * 0.8)
-      .attr('cy',   rng() * H * 3.5 - H * 0.8)
-      .attr('r',    size)
+    starGroup.append('circle')
+      .attr('r', size)
       .attr('fill', `rgba(255,255,255,${(rng() * 0.22 + 0.04).toFixed(2)})`)
       .attr('pointer-events', 'none');
   }
@@ -1044,25 +1046,54 @@ function initGraph() {
   edgeGroupSel = gSel.append('g').attr('class', 'edges');
   nodeGroupSel = gSel.append('g').attr('class', 'nodes');
 
-  // Zoom & pan
   zoomBehavior = d3.zoom().scaleExtent([0.25, 4])
     .on('zoom', e => gSel.attr('transform', e.transform));
 
-  if (isCompactViewport()) {
-    svgSel.style('touch-action', 'pan-y');
-  } else {
-    svgSel.call(zoomBehavior);
-    svgSel.on('dblclick.zoom', null);
-    svgSel.style('touch-action', 'none');
+  function configureZoom() {
+    if (isCompactViewport()) {
+      svgSel.style('touch-action', 'pan-y');
+      svgSel.on('.zoom', null); // Disable zoom on compact
+    } else {
+      svgSel.call(zoomBehavior);
+      svgSel.on('dblclick.zoom', null);
+      svgSel.style('touch-action', 'none');
+    }
   }
 
-  // Background click → deselect
-  svgSel.on('click', () => {
-    state.selectedProfile = null;
-    state.selectedPair    = null;
-    clearHighlight();
-    updateCardSelection(null);
-    resetWhyPanel();
+  function resize() {
+    W = container.clientWidth;
+    H = container.clientHeight;
+    svgSel.attr('viewBox', `0 0 ${W} ${H}`);
+
+    // Recenter starfield
+    starGroup.selectAll('circle').each(function() {
+      d3.select(this)
+        .attr('cx', rng() * W * 3.5 - W * 0.8)
+        .attr('cy', rng() * H * 3.5 - H * 0.8);
+    });
+
+    if (simulation) {
+      simulation.force('center', d3.forceCenter(W / 2, H / 2));
+      simulation.force('x', d3.forceX(W / 2).strength(0.03));
+      simulation.force('y', d3.forceY(H / 2).strength(0.03));
+      simulation.alpha(0.3).restart();
+    }
+    configureZoom();
+  }
+
+  window.addEventListener('resize', resize);
+  
+  // Initial setup
+  resize();
+
+  svgSel.on('click', (event) => {
+    if (event.target.tagName === 'svg' || event.target.classList.contains('zoom-group')) {
+      state.selectedProfile = null;
+      state.selectedPair    = null;
+      clearHighlight();
+      updateCardSelection(null);
+      resetWhyPanel();
+    }
   });
 
   updateGraph();
