@@ -1,0 +1,1305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Serendipity — How It Works</title>
+<style>
+  /* ─── Reset & Base ─────────────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg:        #0a0a0f;
+    --bg2:       #111118;
+    --bg3:       #1a1a24;
+    --border:    rgba(255,255,255,0.07);
+    --cyan:      #00d4ff;
+    --teal:      #00ff88;
+    --coral:     #ff6b6b;
+    --gold:      #ffd700;
+    --purple:    #b39ddb;
+    --text:      #e0e0f0;
+    --muted:     #8888aa;
+    --radius:    12px;
+    --transition: 0.25s ease;
+  }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: system-ui, -apple-system, sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  a { color: var(--cyan); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  code, .mono {
+    font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+    font-size: 0.85em;
+  }
+
+  /* ─── Header ───────────────────────────────────────────────────── */
+  .site-header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(10,10,15,0.92);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    padding: 0 24px;
+    height: 56px;
+  }
+  .back-link {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--muted);
+    font-size: 13px;
+    white-space: nowrap;
+    transition: color var(--transition);
+  }
+  .back-link:hover { color: var(--cyan); text-decoration: none; }
+  .header-title {
+    font-size: 17px;
+    font-weight: 700;
+    background: linear-gradient(90deg, var(--cyan), var(--teal));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    white-space: nowrap;
+  }
+  .header-badge {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 20px;
+    background: rgba(0,212,255,0.12);
+    color: var(--cyan);
+    border: 1px solid rgba(0,212,255,0.25);
+    white-space: nowrap;
+  }
+
+  /* ─── Tab Bar ──────────────────────────────────────────────────── */
+  .tab-bar {
+    display: flex;
+    gap: 4px;
+    padding: 0 24px;
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .tab-bar::-webkit-scrollbar { display: none; }
+  .tab-btn {
+    padding: 14px 18px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--muted);
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: color var(--transition), border-color var(--transition);
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active {
+    color: var(--cyan);
+    border-bottom-color: var(--cyan);
+  }
+  .tab-icon { font-size: 15px; }
+
+  /* ─── Tab Content ──────────────────────────────────────────────── */
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; animation: fadeInUp 0.3s ease; }
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ─── Layout Helpers ───────────────────────────────────────────── */
+  .container { max-width: 1100px; margin: 0 auto; padding: 40px 24px; }
+  .section-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--cyan);
+    margin-bottom: 8px;
+  }
+  .section-title {
+    font-size: 26px;
+    font-weight: 700;
+    margin-bottom: 12px;
+    line-height: 1.3;
+  }
+  .section-desc {
+    color: var(--muted);
+    max-width: 620px;
+    margin-bottom: 36px;
+  }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+
+  /* ─── Cards ────────────────────────────────────────────────────── */
+  .card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    transition: border-color var(--transition), transform var(--transition), box-shadow var(--transition);
+  }
+  .card:hover {
+    border-color: rgba(0,212,255,0.25);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  }
+  .card-icon { font-size: 26px; margin-bottom: 12px; }
+  .card-title { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+  .card-desc { font-size: 13px; color: var(--muted); line-height: 1.55; }
+
+  /* ─── Stat Cards ───────────────────────────────────────────────── */
+  .stat-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 28px 24px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+  }
+  .stat-num {
+    font-size: 36px;
+    font-weight: 800;
+    background: linear-gradient(135deg, var(--cyan), var(--teal));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    display: block;
+    line-height: 1.1;
+    margin-bottom: 6px;
+  }
+  .stat-label { font-size: 13px; color: var(--muted); }
+
+  /* ─── Highlight Box ────────────────────────────────────────────── */
+  .highlight-box {
+    background: rgba(0,212,255,0.05);
+    border: 1px solid rgba(0,212,255,0.2);
+    border-radius: var(--radius);
+    padding: 24px;
+  }
+  .highlight-box.gold {
+    background: rgba(255,215,0,0.05);
+    border-color: rgba(255,215,0,0.2);
+  }
+  .highlight-box.teal {
+    background: rgba(0,255,136,0.05);
+    border-color: rgba(0,255,136,0.2);
+  }
+  .highlight-box.coral {
+    background: rgba(255,107,107,0.05);
+    border-color: rgba(255,107,107,0.2);
+  }
+
+  /* ─── Node Legend ──────────────────────────────────────────────── */
+  .legend { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    padding: 6px 12px;
+    border-radius: 20px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+  }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+  /* ─── Pipeline Tab ─────────────────────────────────────────────── */
+  .pipeline-stepper {
+    display: flex;
+    align-items: flex-start;
+    gap: 0;
+    margin-bottom: 32px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+  .pipeline-step-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    background: none;
+    border: none;
+    color: var(--muted);
+    padding: 12px 16px;
+    min-width: 110px;
+    transition: color var(--transition);
+    position: relative;
+    flex: 1;
+  }
+  .pipeline-step-btn::after {
+    content: '';
+    position: absolute;
+    top: 24px;
+    right: -4px;
+    width: 8px;
+    height: 2px;
+    background: var(--border);
+    z-index: 1;
+  }
+  .pipeline-step-btn:last-child::after { display: none; }
+  .pipeline-step-btn.active { color: var(--cyan); }
+  .pipeline-step-btn.active .step-circle {
+    background: var(--cyan);
+    color: #000;
+    box-shadow: 0 0 18px rgba(0,212,255,0.5);
+    border-color: var(--cyan);
+  }
+  .pipeline-step-btn.done .step-circle {
+    background: rgba(0,255,136,0.15);
+    border-color: var(--teal);
+    color: var(--teal);
+  }
+  .step-circle {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: var(--bg3);
+    border: 2px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    transition: all var(--transition);
+    font-weight: 700;
+  }
+  .step-name { font-size: 12px; font-weight: 600; text-align: center; white-space: nowrap; }
+  .step-connector {
+    flex: 1;
+    height: 2px;
+    background: var(--border);
+    margin-top: 22px;
+    min-width: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+  .step-connector.active::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: linear-gradient(90deg, var(--teal), var(--cyan));
+    animation: flowRight 1.2s linear infinite;
+  }
+  @keyframes flowRight {
+    from { transform: translateX(-100%); }
+    to   { transform: translateX(100%); }
+  }
+
+  .pipeline-detail {
+    background: var(--bg2);
+    border: 1px solid rgba(0,212,255,0.2);
+    border-radius: var(--radius);
+    padding: 32px;
+    animation: fadeInUp 0.25s ease;
+  }
+  .pipeline-detail-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .pipeline-detail-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: var(--radius);
+    background: rgba(0,212,255,0.1);
+    border: 1px solid rgba(0,212,255,0.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 26px;
+    flex-shrink: 0;
+  }
+  .pipeline-detail-title { font-size: 20px; font-weight: 700; }
+  .pipeline-detail-subtitle { font-size: 13px; color: var(--cyan); margin-top: 2px; }
+  .io-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .io-box {
+    background: var(--bg3);
+    border-radius: 8px;
+    padding: 14px 16px;
+    border: 1px solid var(--border);
+  }
+  .io-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+  .io-value { font-size: 13px; color: var(--text); }
+  .io-value code {
+    background: rgba(255,255,255,0.06);
+    padding: 1px 5px;
+    border-radius: 4px;
+  }
+  .detail-body { font-size: 14px; line-height: 1.7; color: var(--text); }
+  .detail-body p { margin-bottom: 14px; }
+  .detail-body strong { color: var(--cyan); font-weight: 600; }
+  .tech-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    background: rgba(179,157,219,0.12);
+    color: var(--purple);
+    border: 1px solid rgba(179,157,219,0.2);
+    margin: 2px;
+  }
+  .highlight-callout {
+    margin-top: 20px;
+    padding: 16px 18px;
+    background: rgba(0,255,136,0.05);
+    border-left: 3px solid var(--teal);
+    border-radius: 0 8px 8px 0;
+    font-size: 13px;
+    color: var(--text);
+  }
+  .highlight-callout strong { color: var(--teal); }
+
+  /* ─── Architecture Tab ─────────────────────────────────────────── */
+  .arch-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    perspective: 800px;
+    cursor: pointer;
+    min-height: 200px;
+  }
+  .arch-card-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    min-height: 200px;
+    transition: transform 0.55s ease;
+    transform-style: preserve-3d;
+  }
+  .arch-card.flipped .arch-card-inner {
+    transform: rotateY(180deg);
+  }
+  .arch-face {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    min-height: 200px;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    border-radius: var(--radius);
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+  }
+  .arch-face-back {
+    background: var(--bg3);
+    border: 1px solid rgba(0,212,255,0.2);
+    transform: rotateY(180deg);
+  }
+  .arch-path {
+    font-size: 11px;
+    font-family: monospace;
+    color: var(--cyan);
+    margin-bottom: 10px;
+    letter-spacing: 0.02em;
+  }
+  .arch-name { font-size: 17px; font-weight: 700; margin-bottom: 6px; }
+  .arch-tagline { font-size: 13px; color: var(--muted); margin-bottom: 16px; flex: 1; }
+  .arch-flip-hint {
+    font-size: 11px;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: auto;
+  }
+  .arch-files { list-style: none; flex: 1; }
+  .arch-files li {
+    font-size: 12px;
+    font-family: monospace;
+    color: var(--text);
+    padding: 5px 0;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .arch-files li:last-child { border-bottom: none; }
+  .arch-files li::before { content: '📄'; font-size: 11px; }
+  .arch-back-title {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--cyan);
+    margin-bottom: 12px;
+  }
+  .arch-close-hint {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 12px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  /* ─── Tech Stack Tab ───────────────────────────────────────────── */
+  .layer-section { margin-bottom: 40px; }
+  .layer-title {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 16px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .tech-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    transition: border-color var(--transition), transform var(--transition), box-shadow var(--transition);
+  }
+  .tech-card:hover {
+    border-color: rgba(0,212,255,0.3);
+    transform: translateY(-3px);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+  }
+  .tech-card-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .tech-name { font-size: 14px; font-weight: 700; }
+  .tech-role {
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+  }
+  .tech-role.local { background: rgba(0,255,136,0.12); color: var(--teal); border: 1px solid rgba(0,255,136,0.2); }
+  .tech-role.cloud { background: rgba(255,107,107,0.12); color: var(--coral); border: 1px solid rgba(255,107,107,0.2); }
+  .tech-role.lib { background: rgba(0,212,255,0.1); color: var(--cyan); border: 1px solid rgba(0,212,255,0.2); }
+  .tech-role.db { background: rgba(255,215,0,0.1); color: var(--gold); border: 1px solid rgba(255,215,0,0.2); }
+  .tech-detail { font-size: 13px; color: var(--muted); line-height: 1.55; }
+
+  /* ─── Overview Hero ────────────────────────────────────────────── */
+  .hero {
+    padding: 56px 24px 0;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+  .hero-eyebrow {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--cyan);
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .hero-eyebrow::before {
+    content: '';
+    display: inline-block;
+    width: 24px;
+    height: 2px;
+    background: var(--cyan);
+  }
+  .hero-title {
+    font-size: clamp(36px, 6vw, 64px);
+    font-weight: 900;
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    margin-bottom: 20px;
+  }
+  .hero-title .gradient {
+    background: linear-gradient(135deg, var(--cyan) 0%, var(--teal) 50%, var(--cyan) 100%);
+    background-size: 200%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: shimmer 4s linear infinite;
+  }
+  @keyframes shimmer {
+    from { background-position: 0% center; }
+    to   { background-position: 200% center; }
+  }
+  .hero-tagline {
+    font-size: clamp(16px, 2.5vw, 22px);
+    color: var(--muted);
+    margin-bottom: 40px;
+    max-width: 560px;
+  }
+
+  /* ─── Scrollbar ────────────────────────────────────────────────── */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--bg3); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #333; }
+
+  /* ─── Responsive ───────────────────────────────────────────────── */
+  @media (max-width: 768px) {
+    .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+    .io-row { grid-template-columns: 1fr; }
+    .pipeline-step-btn { min-width: 80px; padding: 8px 10px; }
+    .step-name { font-size: 10px; }
+    .hero { padding: 36px 16px 0; }
+    .container { padding: 28px 16px; }
+    .pipeline-detail { padding: 20px; }
+    .tab-btn { padding: 12px 14px; }
+  }
+  @media (max-width: 480px) {
+    .site-header { gap: 12px; }
+    .header-badge { display: none; }
+    .grid-4 { grid-template-columns: 1fr 1fr; }
+  }
+
+  /* ─── Divider ──────────────────────────────────────────────────── */
+  .divider { border: none; border-top: 1px solid var(--border); margin: 36px 0; }
+
+  /* ─── Tag Pill ─────────────────────────────────────────────────── */
+  .pill {
+    display: inline-block;
+    font-size: 11px;
+    padding: 2px 9px;
+    border-radius: 20px;
+    margin: 2px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    color: var(--muted);
+  }
+
+  /* ─── Confidence bar ───────────────────────────────────────────── */
+  .conf-bar-wrap { background: var(--bg3); border-radius: 4px; height: 4px; margin-top: 6px; overflow: hidden; }
+  .conf-bar { height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--cyan), var(--teal)); }
+
+  /* ─── Gatekeeper ops ───────────────────────────────────────────── */
+  .op-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    padding: 5px 12px;
+    border-radius: 8px;
+    margin: 4px;
+    font-weight: 600;
+  }
+  .op-add    { background: rgba(0,255,136,0.1);  color: var(--teal);   border: 1px solid rgba(0,255,136,0.2); }
+  .op-str    { background: rgba(0,212,255,0.1);  color: var(--cyan);   border: 1px solid rgba(0,212,255,0.2); }
+  .op-upd    { background: rgba(255,215,0,0.1);  color: var(--gold);   border: 1px solid rgba(255,215,0,0.2); }
+  .op-rem    { background: rgba(255,107,107,0.1);color: var(--coral);  border: 1px solid rgba(255,107,107,0.2); }
+</style>
+</head>
+<body>
+
+<!-- ═══ HEADER ══════════════════════════════════════════════════════ -->
+<header class="site-header">
+  <a href="index.html" class="back-link">
+    ← <span>Live App</span>
+  </a>
+  <span style="color:var(--border)">|</span>
+  <span class="header-title">Serendipity</span>
+  <span class="header-badge">Expo 2024</span>
+</header>
+
+<!-- ═══ TAB BAR ═════════════════════════════════════════════════════ -->
+<nav class="tab-bar" id="tabBar">
+  <button class="tab-btn active" data-tab="overview">
+    <span class="tab-icon">🌐</span> Overview
+  </button>
+  <button class="tab-btn" data-tab="pipeline">
+    <span class="tab-icon">⚙️</span> Pipeline
+  </button>
+  <button class="tab-btn" data-tab="architecture">
+    <span class="tab-icon">🏗️</span> Architecture
+  </button>
+  <button class="tab-btn" data-tab="techstack">
+    <span class="tab-icon">🔧</span> Tech Stack
+  </button>
+</nav>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     TAB 1 — OVERVIEW
+════════════════════════════════════════════════════════════════════ -->
+<div class="tab-panel active" id="tab-overview">
+  <div class="hero">
+    <div class="hero-eyebrow">Personal Knowledge Graph Builder</div>
+    <h1 class="hero-title">
+      <span class="gradient">Serendipity</span>
+    </h1>
+    <p class="hero-tagline">
+      A living, local-first model of who a person is —<br>
+      built from conversations, one episode at a time.
+    </p>
+  </div>
+
+  <div class="container">
+    <!-- Stat Cards -->
+    <div class="grid-3" style="margin-bottom:36px">
+      <div class="stat-card">
+        <span class="stat-num">5</span>
+        <span class="stat-label">Pipeline Steps</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-num">100%</span>
+        <span class="stat-label">Local — No Cloud APIs</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-num">16</span>
+        <span class="stat-label">Episodes Processed</span>
+      </div>
+    </div>
+
+    <!-- Two-column: What it does + Local-first -->
+    <div class="grid-2" style="margin-bottom:32px; align-items:start">
+      <div>
+        <div class="section-label">What It Does</div>
+        <h2 class="section-title" style="font-size:20px">A profile that deepens with every conversation</h2>
+        <p style="color:var(--muted); font-size:14px; margin-bottom:16px">
+          Serendipity processes conversations — audio files or pre-written transcripts — and extracts a structured psychological and biographical profile of a person.
+        </p>
+        <p style="color:var(--muted); font-size:14px; margin-bottom:16px">
+          The system learns <strong style="color:var(--text)">incrementally</strong>: every new conversation deepens the profile. Traits seen repeatedly gain higher confidence. Contradictory information gets resolved. Short-term emotional states are replaced with fresh ones.
+        </p>
+        <p style="color:var(--muted); font-size:14px">
+          The project was validated on a real-world dataset: 16 episodes of <em>Friends</em>, pre-transcribed as <code>.txt</code> files. After each episode the graph correctly and progressively captures the character's personality.
+        </p>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:16px">
+        <div class="highlight-box teal">
+          <div style="font-size:13px; font-weight:700; color:var(--teal); margin-bottom:8px">🔒 Local-First Philosophy</div>
+          <p style="font-size:13px; color:var(--muted); line-height:1.6">Everything runs entirely on your machine. No data leaves. No API keys required (except a one-time HuggingFace download). Safe for sensitive personal conversations, deployable fully offline.</p>
+        </div>
+        <div class="highlight-box">
+          <div style="font-size:13px; font-weight:700; color:var(--cyan); margin-bottom:8px">📈 Incremental Learning</div>
+          <p style="font-size:13px; color:var(--muted); line-height:1.6">Confidence starts at 0.6 for new traits. Each re-appearance adds +0.1, capped at 1.0. High-confidence nodes cluster near the center of the 3D graph.</p>
+          <div style="margin-top:12px">
+            <div style="display:flex; justify-content:space-between; font-size:11px; color:var(--muted); margin-bottom:4px"><span>Confidence</span><span>0.6 → 1.0</span></div>
+            <div class="conf-bar-wrap"><div class="conf-bar" style="width:60%"></div></div>
+            <div style="display:flex; justify-content:space-between; font-size:11px; color:var(--muted); margin-top:6px; margin-bottom:4px"><span>After 4 episodes</span><span>1.0 (max)</span></div>
+            <div class="conf-bar-wrap"><div class="conf-bar" style="width:100%"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <hr class="divider" />
+
+    <!-- Node type legend -->
+    <div class="section-label">Knowledge Graph — Node Types</div>
+    <p style="color:var(--muted); font-size:13px; margin-bottom:16px">Each extracted insight becomes a node in a directed graph, connected to the root "user" node with a confidence-weighted edge.</p>
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background:#00d4ff"></div> Core Value</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#00ff88"></div> Long-term Goal</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#ff6b6b"></div> Short-term State <span style="font-size:11px; color:var(--muted); margin-left:4px">(wiped each run)</span></div>
+      <div class="legend-item"><div class="legend-dot" style="background:#ffd700"></div> Person / Relationship</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#b39ddb"></div> Custom (LLM-invented)</div>
+    </div>
+
+    <hr class="divider" />
+
+    <!-- Graph explanation -->
+    <div class="grid-2" style="align-items:start">
+      <div class="card">
+        <div class="card-icon">🧠</div>
+        <div class="card-title">Deterministic Node IDs</div>
+        <div class="card-desc">Every trait gets a slug ID — <code style="color:var(--cyan)">cv_discipline</code> for "discipline" as a core value. Across 16 episodes, the same node accumulates evidence rather than creating duplicates.</div>
+      </div>
+      <div class="card">
+        <div class="card-icon">💾</div>
+        <div class="card-title">Snapshot & Rollback</div>
+        <div class="card-desc">After every pipeline run, the full graph serializes to a SQLite snapshot. Up to 100 snapshots are retained. A diff view shows exactly what changed — nodes added, strengthened, updated, or removed.</div>
+      </div>
+      <div class="card">
+        <div class="card-icon">🔄</div>
+        <div class="card-title">Smart State Wiping</div>
+        <div class="card-desc">Short-term emotional states are deleted at the start of each new run. Values and goals accumulate; feelings are always fresh. This mirrors how real personalities work.</div>
+      </div>
+      <div class="card">
+        <div class="card-icon">🎯</div>
+        <div class="card-title">Multi-Pass Extraction</div>
+        <div class="card-desc">Instead of one broad LLM call, each category (values, goals, states) gets its own focused prompt. A final dedup pass cross-reasons across all categories to find connections a single pass would miss.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     TAB 2 — PIPELINE
+════════════════════════════════════════════════════════════════════ -->
+<div class="tab-panel" id="tab-pipeline">
+  <div class="container">
+    <div class="section-label">Data Transformation Chain</div>
+    <h2 class="section-title">The 5-Step Pipeline</h2>
+    <p class="section-desc">Every piece of text or audio goes through the same five steps in order. Click any step to explore its internals.</p>
+
+    <!-- Stepper -->
+    <div class="pipeline-stepper" id="pipelineStepper">
+      <button class="pipeline-step-btn active" data-step="0">
+        <div class="step-circle">🎙</div>
+        <span class="step-name">Transcribe</span>
+      </button>
+      <div class="step-connector active" id="conn0"></div>
+      <button class="pipeline-step-btn" data-step="1">
+        <div class="step-circle">👥</div>
+        <span class="step-name">Diarize</span>
+      </button>
+      <div class="step-connector" id="conn1"></div>
+      <button class="pipeline-step-btn" data-step="2">
+        <div class="step-circle">📥</div>
+        <span class="step-name">Ingest</span>
+      </button>
+      <div class="step-connector" id="conn2"></div>
+      <button class="pipeline-step-btn" data-step="3">
+        <div class="step-circle">🧬</div>
+        <span class="step-name">Extract</span>
+      </button>
+      <div class="step-connector" id="conn3"></div>
+      <button class="pipeline-step-btn" data-step="4">
+        <div class="step-circle">🛡</div>
+        <span class="step-name">Gatekeeper</span>
+      </button>
+    </div>
+
+    <!-- Detail panel (JS-driven) -->
+    <div class="pipeline-detail" id="pipelineDetail"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     TAB 3 — ARCHITECTURE
+════════════════════════════════════════════════════════════════════ -->
+<div class="tab-panel" id="tab-architecture">
+  <div class="container">
+    <div class="section-label">Code Structure</div>
+    <h2 class="section-title">Four Subpackages + Entry Points</h2>
+    <p class="section-desc">The code is organized into four layers that map directly to concerns. Click any card to see the files inside.</p>
+
+    <div class="grid-2" style="margin-bottom:24px">
+
+      <!-- core/ -->
+      <div class="arch-card" id="archCore">
+        <div class="arch-card-inner">
+          <div class="arch-face">
+            <div class="arch-path">src/core/</div>
+            <div class="arch-name">Foundation</div>
+            <div class="arch-tagline">Shared infrastructure used by every other layer — config constants, the LLM client, Pydantic schemas, structured logging, and in-memory telemetry.</div>
+            <div class="legend" style="margin-bottom:12px">
+              <div class="legend-item" style="font-size:11px"><div class="legend-dot" style="background:var(--cyan)"></div> Config</div>
+              <div class="legend-item" style="font-size:11px"><div class="legend-dot" style="background:var(--teal)"></div> LLM Client</div>
+              <div class="legend-item" style="font-size:11px"><div class="legend-dot" style="background:var(--purple)"></div> Schemas</div>
+            </div>
+            <div class="arch-flip-hint">🔄 Click to see files</div>
+          </div>
+          <div class="arch-face arch-face-back">
+            <div class="arch-back-title">src/core/ — Files</div>
+            <ul class="arch-files">
+              <li>config.py — all tunable constants, env-var backed</li>
+              <li>llm_client.py — Ollama wrapper, retry + backoff</li>
+              <li>schemas.py — Pydantic models + coercion validators</li>
+              <li>logger.py — rotating file + console logging</li>
+              <li>telemetry.py — in-memory metrics collector</li>
+            </ul>
+            <div class="arch-close-hint">🔄 Click to flip back</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- pipeline/ -->
+      <div class="arch-card" id="archPipeline">
+        <div class="arch-card-inner">
+          <div class="arch-face">
+            <div class="arch-path">src/pipeline/</div>
+            <div class="arch-name">Pipeline</div>
+            <div class="arch-tagline">The 5-step data transformation chain — each step is an independent module with a clear input/output contract. Audio in, updated graph out.</div>
+            <div class="legend" style="margin-bottom:12px">
+              <div class="legend-item" style="font-size:11px"><div class="legend-dot" style="background:var(--cyan)"></div> 5 Steps</div>
+              <div class="legend-item" style="font-size:11px"><div class="legend-dot" style="background:var(--gold)"></div> Dataclasses</div>
+            </div>
+            <div class="arch-flip-hint">🔄 Click to see files</div>
+          </div>
+          <div class="arch-face arch-face-back">
+            <div class="arch-back-title">src/pipeline/ — Files</div>
+            <ul class="arch-files">
+              <li>transcribe.py — audio → text (faster-whisper)</li>
+              <li>diarize.py — text → speaker-labeled transcript</li>
+              <li>ingest.py — raw text → structured Turn objects</li>
+              <li>extract.py — multi-pass LLM extraction engine</li>
+              <li>gatekeeper.py — graph edit actions + fact-checker</li>
+            </ul>
+            <div class="arch-close-hint">🔄 Click to flip back</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- storage/ -->
+      <div class="arch-card" id="archStorage">
+        <div class="arch-card-inner">
+          <div class="arch-face">
+            <div class="arch-path">src/storage/</div>
+            <div class="arch-name">Storage</div>
+            <div class="arch-tagline">SQLite-backed graph persistence. WAL mode for concurrent reads during writes. Snapshot system for full history and rollback. Zero-config, single portable file.</div>
+            <div class="legend" style="margin-bottom:12px">
+              <div class="legend-item" style="font-size:11px"><div class="legend-dot" style="background:var(--gold)"></div> SQLite</div>
+              <div class="legend-item" style="font-size:11px"><div class="legend-dot" style="background:var(--teal)"></div> NetworkX</div>
+            </div>
+            <div class="arch-flip-hint">🔄 Click to see files</div>
+          </div>
+          <div class="arch-face arch-face-back">
+            <div class="arch-back-title">src/storage/ — Files</div>
+            <ul class="arch-files">
+              <li>graph.py — save/load/diff graph ↔ SQLite</li>
+              <li>schema: nodes, edges, meta, snapshots tables</li>
+              <li>WAL mode — concurrent reads during pipeline writes</li>
+              <li>Snapshot path format: snap_{id}_{ts}_{model}.db</li>
+              <li>diff_graphs() — structured before/after comparison</li>
+            </ul>
+            <div class="arch-close-hint">🔄 Click to flip back</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ui/ -->
+      <div class="arch-card" id="archUI">
+        <div class="arch-card-inner">
+          <div class="arch-face">
+            <div class="arch-path">src/ui/</div>
+            <div class="arch-name">Visualizer</div>
+            <div class="arch-tagline">Generates a self-contained HTML string with the full graph as inline JSON, rendered as an interactive 3D scene via 3d-force-graph, Three.js, and D3-force.</div>
+            <div class="legend" style="margin-bottom:12px">
+              <div class="legend-item" style="font-size:11px"><div class="legend-dot" style="background:var(--purple)"></div> Three.js</div>
+              <div class="legend-item" style="font-size:11px"><div class="legend-dot" style="background:var(--cyan)"></div> D3-force</div>
+            </div>
+            <div class="arch-flip-hint">🔄 Click to see files</div>
+          </div>
+          <div class="arch-face arch-face-back">
+            <div class="arch-back-title">src/ui/ — Files</div>
+            <ul class="arch-files">
+              <li>visualizer.py — Python → HTML graph generator</li>
+              <li>Fibonacci sphere — uniform N-point distribution</li>
+              <li>Radius ∝ 1/confidence — center = high certainty</li>
+              <li>180 star particles for depth / data-cosmos feel</li>
+              <li>Directional beam particles + animated flow</li>
+            </ul>
+            <div class="arch-close-hint">🔄 Click to flip back</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Entry points -->
+    <div class="section-label" style="margin-top:8px">Entry Points</div>
+    <div class="grid-2">
+      <div class="card">
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:10px">
+          <span style="font-size:22px">🌐</span>
+          <div>
+            <div class="card-title" style="margin:0">app.py</div>
+            <div style="font-size:11px; color:var(--cyan); font-family:monospace">Streamlit — localhost:8501</div>
+          </div>
+        </div>
+        <div class="card-desc">The interactive web UI with 7 tabs: 3D Graph, Profile summary, Run Days (step-by-step pipeline runner), Stage 1 transcription, Snapshot history, Raw JSON, and Live logs. All transient state stored in <code>st.session_state</code> with typed string-constant keys.</div>
+      </div>
+      <div class="card">
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:10px">
+          <span style="font-size:22px">⚡</span>
+          <div>
+            <div class="card-title" style="margin:0">batch_run.py</div>
+            <div style="font-size:11px; color:var(--teal); font-family:monospace">CLI — bulk processing</div>
+          </div>
+        </div>
+        <div class="card-desc">Processes a folder of pre-transcribed <code>.txt</code> files in natural sort order (day 1 → day 16). Runs Steps 3–5 only (skips transcription). Saves the updated graph after each file so the profile builds chronologically.</div>
+      </div>
+    </div>
+
+    <!-- Data flow diagram -->
+    <hr class="divider" />
+    <div class="section-label">Data Flow</div>
+    <div style="background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius); padding:24px; font-size:13px; font-family:monospace; line-height:2; color:var(--muted); overflow-x:auto">
+      <span style="color:var(--cyan)">Audio / .txt file</span>
+      <span style="color:var(--border)"> ──► </span>
+      <span style="color:var(--text)">transcribe.py</span>
+      <span style="color:var(--border)"> ──► </span>
+      <span style="color:var(--text)">diarize.py</span>
+      <span style="color:var(--border)"> ──► </span>
+      <span style="color:var(--text)">ingest.py</span>
+      <span style="color:var(--border)"> ──► </span>
+      <span style="color:var(--text)">extract.py</span>
+      <span style="color:var(--border)"> ──► </span>
+      <span style="color:var(--text)">gatekeeper.py</span>
+      <span style="color:var(--border)"> ──► </span>
+      <span style="color:var(--teal)">graph.py (SQLite)</span>
+      <br>
+      <span style="font-size:11px; color:var(--border)">
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        TranscriptResult &nbsp;&nbsp; DiarizedTranscript &nbsp;&nbsp; [Turn] &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DedupOutput &nbsp;&nbsp;&nbsp; GraphEditActions &nbsp;&nbsp; profile.db
+      </span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     TAB 4 — TECH STACK
+════════════════════════════════════════════════════════════════════ -->
+<div class="tab-panel" id="tab-techstack">
+  <div class="container">
+    <div class="section-label">Technology Breakdown</div>
+    <h2 class="section-title">Full Stack, Fully Local</h2>
+    <p class="section-desc">Every layer of the system uses open-source, locally-executed tools. No cloud services, no API keys at runtime.</p>
+
+    <!-- Transcription -->
+    <div class="layer-section">
+      <div class="layer-title"><span>🎙</span> Transcription Layer</div>
+      <div class="grid-3">
+        <div class="tech-card">
+          <div class="tech-card-top">
+            <div class="tech-name">faster-whisper</div>
+            <span class="tech-role local">Local</span>
+          </div>
+          <div class="tech-detail">CTranslate2-based reimplementation of OpenAI's Whisper. Runs fully on CPU (or CUDA). Achieves real-time factor &lt;1.0 — transcribes faster than the audio duration.</div>
+        </div>
+        <div class="tech-card">
+          <div class="tech-card-top">
+            <div class="tech-name">silero-VAD</div>
+            <span class="tech-role local">Local</span>
+          </div>
+          <div class="tech-detail">Voice Activity Detection — skips silence, music, and non-speech before Whisper processes anything. Dramatically speeds up transcription on real-world recordings with pauses.</div>
+        </div>
+        <div class="tech-card">
+          <div class="tech-card-top">
+            <div class="tech-name">PyAV</div>
+            <span class="tech-role lib">Library</span>
+          </div>
+          <div class="tech-detail">Decodes audio to 16 kHz mono float32. Applies peak normalization to −3 dBFS (~70.7% full scale) so Whisper gets consistent input regardless of original recording volume.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Diarization -->
+    <div class="layer-section">
+      <div class="layer-title"><span>👥</span> Speaker Diarization Layer</div>
+      <div class="grid-3">
+        <div class="tech-card">
+          <div class="tech-card-top">
+            <div class="tech-name">pyannote 3.1</div>
+            <span class="tech-role local">Local</span>
+          </div>
+          <div class="tech-detail">State-of-the-art HuggingFace diarization model (~500 MB). Processes audio in 10-min subprocess chunks to stay within RAM limits. Each chunk is killed after completion — memory fully released.</div>
+        </div>
+        <div class="tech-card">
+          <div class="tech-card-top">
+            <div class="tech-name">Cosine Similarity</div>
+            <span class="tech-role lib">Algorithm</span>
+          </div>
+          <div class="tech-detail">Speaker embeddings from adjacent chunks are compared via cosine similarity. Threshold ≥ 0.65 → same person. Running averages update embeddings over time for better accuracy.</div>
+        </div>
+        <div class="tech-card">
+          <div class="tech-card-top">
+            <div class="tech-name">Name Spotting</div>
+            <span class="tech-role lib">Algorithm</span>
+          </div>
+          <div class="tech-detail">Two-signal system: self-ID ("I'm Monica", weight 2) and direct address ("Hey Monica", weight 1). Requires total score ≥ 2 and ≥ 40% consistency. 80-word NOT_NAMES blocklist prevents false positives.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- LLM -->
+    <div class="layer-section">
+      <div class="layer-title"><span>🧠</span> LLM Intelligence Layer</div>
+      <div class="grid-3">
+        <div class="tech-card">
+          <div class="tech-card-top">
+            <div class="tech-name">Ollama</div>
+            <span class="tech-role local">Local</span>
+          </div>
+          <div class="tech-detail">Local LLM runtime. Default models: <code>mistral:7b</code> (diarization), <code>llama3</code> (extraction + gatekeeper). All calls in JSON mode — forces structured output. 180-second HTTP timeout.</div>
+        </div>
+        <div class="tech-card">
+          <div class="tech-card-top">
+            <div class="tech-name">Pydantic v2</div>
+            <span class="tech-role lib">Library</span>
+          </div>
+          <div class="tech-detail">Validates all LLM outputs. Coercion validators handle: nested label dicts, stringified floats, out-of-range confidence values, null labels. Every coercion increments telemetry counters.</div>
+        </div>
+        <div class="tech-card">
+          <div class="tech-card-top">
+            <div class="tech-name">Multi-turn Correction</div>
+            <span class="tech-role lib">Algorithm</span>
+          </div>
+          <div class="tech-detail">On malformed JSON: exponential backoff (3 retries, 1s → 2s → 4s + jitter). The bad response is appended to conversation history and a correction prompt is sent — far more effective than blindly resending.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Storage -->
+    <div class="layer-section">
+      <div class="layer-title"><span>💾</span> Storage Layer</div>
+      <div class="grid-3">
+        <div class="tech-card">
+          <div class="tech-card-top">
+            <div class="tech-name">SQLite + WAL</div>
+            <span class="tech-role db">Database</span>
+          </div>
+          <div class="tech-detail">Zero-config file-based database at <code>data/profiles/&lt;name&gt;/profile.db</code>. WAL (Write-Ahead Log) mode allows concurrent reads during pipeline writes — critical for the live UI.</div>
+        </div>
+        <div class="tech-card">
+          <div class="tech-card-top">
+            <div class="tech-name">NetworkX</div>
+            <span class="tech-role lib">Library</span>
+          </div>
+          <div class="tech-detail">Directed graph (<code>nx.DiGraph</code>) in memory. One root "user" node. All trait nodes connect via weighted edges (confidence 0–1). Serialized to JSON for SQLite snapshots.</div>
+        </div>
+        <div class="tech-card">
+          <div class="tech-card-top">
+            <div class="tech-name">Snapshot System</div>
+            <span class="tech-role db">Feature</span>
+          </div>
+          <div class="tech-detail">Full graph serialized after every run into the <code>snapshots</code> table. Up to 100 retained. <code>diff_graphs()</code> compares any two snapshots for a structured added/updated/removed report.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- UI -->
+    <div class="layer-section">
+      <div class="layer-title"><span>🌐</span> UI & Visualization Layer</div>
+      <div class="grid-3">
+        <div class="tech-card">
+          <div class="tech-card-top">
+            <div class="tech-name">Streamlit</div>
+            <span class="tech-role lib">Framework</span>
+          </div>
+          <div class="tech-detail">Python → interactive web app with minimal boilerplate. 7 tabs: Graph, Profile, Run Days, Stage 1, History, Raw Data, Log. Session state keyed with typed string constants to prevent silent typo bugs.</div>
+        </div>
+        <div class="tech-card">
+          <div class="tech-card-top">
+            <div class="tech-name">3d-force-graph</div>
+            <span class="tech-role lib">Library</span>
+          </div>
+          <div class="tech-detail">JS library wrapping Three.js + D3-force for interactive 3D graph rendering. Node size ∝ confidence. Edge beam thickness ∝ confidence. Directional animated particles show graph directionality.</div>
+        </div>
+        <div class="tech-card">
+          <div class="tech-card-top">
+            <div class="tech-name">Fibonacci Sphere</div>
+            <span class="tech-role lib">Algorithm</span>
+          </div>
+          <div class="tech-detail">Nodes placed using golden-angle spiral for uniform surface distribution with no clumping. Radius ∝ 1/confidence: uncertain nodes on outer shell, high-certainty nodes cluster at center.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Config system callout -->
+    <div class="highlight-box" style="margin-top:8px">
+      <div style="font-size:13px; font-weight:700; color:var(--cyan); margin-bottom:8px">⚙️ config.py — Environment-Variable Backed Constants</div>
+      <p style="font-size:13px; color:var(--muted); margin-bottom:12px">Every tunable number lives in <code>config.py</code> as a module-level constant that reads from an env var first. No code changes needed to tune behavior — just set <code>SERENDIPITY_LLM_TIMEOUT=300</code> in your shell.</p>
+      <div style="display:flex; flex-wrap:wrap; gap:6px">
+        <span class="pill">Whisper model size</span>
+        <span class="pill">Ollama model name</span>
+        <span class="pill">Retry counts &amp; backoff</span>
+        <span class="pill">Confidence increment</span>
+        <span class="pill">Snapshot retention</span>
+        <span class="pill">Node colors</span>
+        <span class="pill">Visualizer layout</span>
+        <span class="pill">Session state keys</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ JS ════════════════════════════════════════════════════════════ -->
+<script>
+// ── Tab switching ─────────────────────────────────────────────────────
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const target = btn.dataset.tab;
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + target).classList.add('active');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+});
+
+// ── Architecture card flip ────────────────────────────────────────────
+document.querySelectorAll('.arch-card').forEach(card => {
+  card.addEventListener('click', () => card.classList.toggle('flipped'));
+});
+
+// ── Pipeline step data ────────────────────────────────────────────────
+const STEPS = [
+  {
+    icon: '🎙',
+    title: 'Step 1 — Transcription',
+    subtitle: 'src/pipeline/transcribe.py',
+    input: '<code>.mp3, .wav, .m4a, .flac, .ogg, .aac, .wma</code>',
+    output: '<code>TranscriptResult</code> — full text, duration, transcription time, language, real-time factor',
+    tech: ['faster-whisper', 'silero-VAD', 'PyAV', 'CTranslate2'],
+    body: `
+      <p>Audio is first decoded to <strong>16 kHz mono float32</strong> using PyAV, then peak-normalized to <strong>−3 dBFS</strong> (~70.7% full scale). Normalization ensures consistent input regardless of recording volume — Whisper performs much better on non-clipping audio.</p>
+      <p>The model uses <strong>silero-VAD</strong> (voice activity detection) to skip silence, music, and background noise before processing. This is a major speed boost on recordings with pauses.</p>
+      <p>The real-time factor (transcription time ÷ audio duration) is tracked. A value under <strong>1.0</strong> means the system transcribed faster than real-time. On a modern CPU this consistently stays under 1.0 for standard speech.</p>
+    `,
+    callout: '<strong>No cloud:</strong> faster-whisper runs entirely locally — no audio ever leaves the machine.'
+  },
+  {
+    icon: '👥',
+    title: 'Step 2 — Speaker Diarization',
+    subtitle: 'src/pipeline/diarize.py',
+    input: '<code>audio file</code> + <code>TranscriptResult</code> from Step 1',
+    output: '<code>DiarizedTranscript</code> — multi-speaker text: <code>Monica: Hey Rachel...</code>',
+    tech: ['pyannote 3.1', 'cosine similarity', 'regex name-spotting', 'Ollama mistral:7b'],
+    body: `
+      <p><strong>Sub-step 2a — pyannote separation:</strong> The audio is processed in 10-minute subprocess chunks. Each subprocess is killed after completion so its RAM is fully released before the next chunk starts. Speaker embeddings (voice fingerprints) from adjacent chunks are merged using <strong>cosine similarity ≥ 0.65</strong>.</p>
+      <p><strong>Sub-step 2b — name spotting:</strong> Two signals extract real names from dialogue. Self-identification (<em>"I'm Monica"</em>) scores 2 points. Direct address (<em>"Hey Monica, ..."</em>) scores 1 point. A name needs total score ≥ 2 and ≥ 40% consistency to be accepted. An 80-word blocklist filters common non-name words.</p>
+      <p><strong>Sub-step 2c — LLM name confirmation:</strong> For any unresolved speakers, the first ~4,000 characters of transcript go to a local Ollama model. The filename (e.g. <em>friends_s01e01.mp3</em>) provides strong contextual evidence.</p>
+    `,
+    callout: '<strong>Memory-safe design:</strong> Processing hour-long recordings on 8 GB RAM machines works reliably because each pyannote chunk subprocess is fully destroyed before the next one starts.'
+  },
+  {
+    icon: '📥',
+    title: 'Step 3 — Ingestion',
+    subtitle: 'src/pipeline/ingest.py',
+    input: 'Speaker-labeled raw text: <code>Monica: text\\nRachel: text</code>',
+    output: 'List of <code>Turn</code> objects — structured, normalized, validated',
+    tech: ['Python regex', 'Pydantic', 'Title Case normalization'],
+    body: `
+      <p>Ingestion validates the input — rejects empty text, files over <strong>5 MB</strong>, and binary content (null bytes). It parses lines matching <code>^SpeakerName: text</code> via regex, joining multi-line turns under the same speaker.</p>
+      <p>Speaker names are normalized to <strong>Title Case</strong> — so "alice", "ALICE", and "Alice" all become "Alice". This prevents duplicate graph nodes downstream from the same person having slightly different capitalizations.</p>
+      <p>If no speaker labels are found (free-form text with no <code>Name:</code> prefix), the entire text is wrapped as a single <code>User</code> turn so it can still flow through the rest of the pipeline.</p>
+    `,
+    callout: '<strong>Why normalization matters:</strong> Without Title Case normalization, "alice" and "Alice" would create two separate nodes in the graph — each with half the confidence score of a single node.'
+  },
+  {
+    icon: '🧬',
+    title: 'Step 4 — Multi-Pass Extraction',
+    subtitle: 'src/pipeline/extract.py',
+    input: 'Diarized transcript text',
+    output: '<code>DedupOutput</code> (merged beliefs, goals, states, relationships) + <code>IdentityOutput</code>',
+    tech: ['Ollama LLM', 'Pydantic schemas', 'JSON mode', 'multi-pass prompting'],
+    body: `
+      <p><strong>Sub-step 4a — Pre-pass:</strong> The LLM reads the full transcript and returns an extraction plan: which categories exist, in what order to extract them, and up to 2 custom categories (capped at <code>MAX_EXTRA_PASSES = 2</code>).</p>
+      <p><strong>Sub-step 4b — Focused extraction:</strong> One dedicated LLM call per category, each with its own system prompt loaded from <code>prompts/extraction/&lt;category&gt;.txt</code>. Focused calls go deeper than one broad call.</p>
+      <p><strong>Sub-step 4c — Dedup + cross-reasoning:</strong> All results are merged in a single "dedup" call. The LLM de-duplicates near-synonyms, then performs cross-category reasoning — e.g., finding that a core value of honesty conflicts with a goal of keeping a secret.</p>
+      <p><strong>Sub-step 4d — Identity extraction:</strong> A final separate call extracts biographical facts (name, age, job, city). Smart update logic: if the new extraction is less confident than what's stored, the existing value is kept.</p>
+    `,
+    callout: '<strong>Why multi-pass?</strong> A single broad prompt is shallow. Focused calls per category let the model go deep on each topic. Cross-category reasoning then finds connections a single pass would miss entirely.'
+  },
+  {
+    icon: '🛡',
+    title: 'Step 5 — Gatekeeper',
+    subtitle: 'src/pipeline/gatekeeper.py',
+    input: 'Current <code>NetworkX</code> graph + <code>DedupOutput</code> from Step 4',
+    output: 'Updated <code>NetworkX</code> graph with surgical edits applied',
+    tech: ['Ollama LLM', 'NetworkX', 'deterministic node IDs', 'confidence scoring'],
+    body: `
+      <p>The gatekeeper sees the <strong>existing profile</strong> (JSON summary of the current graph) and the <strong>new insights</strong>, then emits a list of graph edit actions — not a full graph rewrite.</p>
+      <div style="display:flex; flex-wrap:wrap; gap:6px; margin:16px 0">
+        <span class="op-badge op-add">➕ add — new insight, create node + edge</span>
+        <span class="op-badge op-str">⬆ strengthen — seen again, +0.1 confidence</span>
+        <span class="op-badge op-upd">✏️ update — something changed, overwrite metadata</span>
+        <span class="op-badge op-rem">✂️ remove — contradicted by new evidence</span>
+      </div>
+      <p>Before applying actions, all <strong>short_term_state</strong> nodes are deleted — emotional states are transient and go stale between conversations.</p>
+      <p>Every node gets a <strong>deterministic slug ID</strong> from its type and label. "discipline" as a core_value always becomes <code>cv_discipline</code> — so strengthen correctly hits the same node across 16 episodes.</p>
+    `,
+    callout: '<strong>Without a gatekeeper</strong>, the graph would grow unboundedly and accumulate every noisy extraction. The gatekeeper is what makes the profile trustworthy and consistent over time.'
+  }
+];
+
+// ── Render pipeline detail ────────────────────────────────────────────
+let activeStep = 0;
+
+function renderPipelineDetail(idx) {
+  const s = STEPS[idx];
+  document.getElementById('pipelineDetail').innerHTML = `
+    <div class="pipeline-detail-header">
+      <div class="pipeline-detail-icon">${s.icon}</div>
+      <div>
+        <div class="pipeline-detail-title">${s.title}</div>
+        <div class="pipeline-detail-subtitle">${s.subtitle}</div>
+      </div>
+    </div>
+    <div class="io-row">
+      <div class="io-box">
+        <div class="io-label">Input</div>
+        <div class="io-value">${s.input}</div>
+      </div>
+      <div class="io-box">
+        <div class="io-label">Output</div>
+        <div class="io-value">${s.output}</div>
+      </div>
+    </div>
+    <div style="margin-bottom:16px">
+      ${s.tech.map(t => `<span class="tech-badge">⚙ ${t}</span>`).join('')}
+    </div>
+    <div class="detail-body">${s.body}</div>
+    <div class="highlight-callout">${s.callout}</div>
+  `;
+}
+
+function setActiveStep(idx) {
+  const btns = document.querySelectorAll('.pipeline-step-btn');
+  btns.forEach((b, i) => {
+    b.classList.remove('active', 'done');
+    if (i < idx) b.classList.add('done');
+    if (i === idx) b.classList.add('active');
+  });
+  // connectors
+  for (let i = 0; i < 4; i++) {
+    const c = document.getElementById('conn' + i);
+    if (c) c.classList.toggle('active', i < idx);
+  }
+  activeStep = idx;
+  renderPipelineDetail(idx);
+}
+
+document.querySelectorAll('.pipeline-step-btn').forEach(btn => {
+  btn.addEventListener('click', () => setActiveStep(parseInt(btn.dataset.step)));
+});
+
+// Initialize pipeline
+setActiveStep(0);
+</script>
+</body>
+</html>
