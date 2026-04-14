@@ -398,30 +398,31 @@
     border-radius: var(--radius);
     perspective: 800px;
     cursor: pointer;
-    min-height: 200px;
+    min-height: var(--arch-card-min-height, 260px);
+    overflow: hidden;
   }
   .arch-card-inner {
     position: relative;
     width: 100%;
-    height: 100%;
-    min-height: 200px;
+    height: var(--arch-card-min-height, 260px);
+    min-height: var(--arch-card-min-height, 260px);
     transition: transform 0.55s ease;
     transform-style: preserve-3d;
+    will-change: transform;
   }
   .arch-card.flipped .arch-card-inner {
     transform: rotateY(180deg);
   }
   .arch-face {
     position: absolute;
-    width: 100%;
-    height: 100%;
-    min-height: 200px;
+    inset: 0;
     backface-visibility: hidden;
     -webkit-backface-visibility: hidden;
     border-radius: var(--radius);
     padding: 24px;
     display: flex;
     flex-direction: column;
+    gap: 0;
   }
   .arch-face-back {
     background: var(--bg3);
@@ -445,7 +446,11 @@
     gap: 4px;
     margin-top: auto;
   }
-  .arch-files { list-style: none; flex: 1; }
+  .arch-files {
+    list-style: none;
+    flex: 1;
+    min-height: 0;
+  }
   .arch-files li {
     font-size: 12px;
     font-family: monospace;
@@ -589,11 +594,15 @@
     .container { padding: 28px 16px; }
     .pipeline-detail { padding: 20px; }
     .tab-btn { padding: 12px 14px; }
+    .arch-face { padding: 20px; }
   }
   @media (max-width: 480px) {
     .site-header { gap: 12px; }
     .header-badge { display: none; }
     .grid-4 { grid-template-columns: 1fr 1fr; }
+    .arch-name { font-size: 16px; }
+    .arch-tagline,
+    .arch-files li { font-size: 12px; }
   }
 
   /* ─── Divider ──────────────────────────────────────────────────── */
@@ -1157,13 +1166,66 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
     btn.classList.add('active');
     document.getElementById('tab-' + target).classList.add('active');
+    if (target === 'architecture') {
+      requestAnimationFrame(syncArchitectureCardHeights);
+    }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   });
 });
 
 // ── Architecture card flip ────────────────────────────────────────────
+function syncArchitectureCardHeights() {
+  document.querySelectorAll('.arch-card').forEach(card => {
+    const inner = card.querySelector('.arch-card-inner');
+    const faces = Array.from(card.querySelectorAll('.arch-face'));
+    if (!inner || faces.length === 0) return;
+
+    const measuredHeights = faces.map(face => {
+      const prev = {
+        position: face.style.position,
+        inset: face.style.inset,
+        visibility: face.style.visibility,
+        transform: face.style.transform,
+        height: face.style.height,
+        minHeight: face.style.minHeight,
+      };
+
+      face.style.position = 'relative';
+      face.style.inset = 'auto';
+      face.style.visibility = 'hidden';
+      face.style.transform = 'none';
+      face.style.height = 'auto';
+      face.style.minHeight = '0';
+
+      const height = face.scrollHeight;
+
+      face.style.position = prev.position;
+      face.style.inset = prev.inset;
+      face.style.visibility = prev.visibility;
+      face.style.transform = prev.transform;
+      face.style.height = prev.height;
+      face.style.minHeight = prev.minHeight;
+
+      return height;
+    });
+
+    const targetHeight = Math.max(...measuredHeights, 220);
+    card.style.setProperty('--arch-card-min-height', `${targetHeight}px`);
+    inner.style.height = `${targetHeight}px`;
+    inner.style.minHeight = `${targetHeight}px`;
+  });
+}
+
 document.querySelectorAll('.arch-card').forEach(card => {
   card.addEventListener('click', () => card.classList.toggle('flipped'));
+});
+
+syncArchitectureCardHeights();
+
+let archResizeFrame = 0;
+window.addEventListener('resize', () => {
+  cancelAnimationFrame(archResizeFrame);
+  archResizeFrame = requestAnimationFrame(syncArchitectureCardHeights);
 });
 
 // ── Pipeline step data ────────────────────────────────────────────────
